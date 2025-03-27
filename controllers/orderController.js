@@ -10,7 +10,7 @@ export const createOrder = async (req, res) => {
     const options = {
         amount: req.body.amount, // Amount in smallest currency unit
         currency: 'INR',
-        receipt: 'receipt#1',
+        receipt: req.body.receipt,
     };
 
     try {
