@@ -22,3 +22,42 @@ export const createOrder = async (req, res) => {
     }
 };
 
+export const capturePayment = async (req, res) => {
+    const { paymentId, orderId, amount, currency } = req.body;
+
+    try {
+        // Verify the payment signature first (optional but recommended)
+
+        // Capture the payment
+        const payment = await razorpay.payments.capture(paymentId, amount, currency);
+
+        // Log the successful payment
+        console.log('Payment captured successfully:', payment);
+
+        // Send success response
+        res.json({
+            success: true,
+            payment: payment,
+            message: 'Payment captured successfully'
+        });
+
+    } catch (error) {
+        console.error('Error capturing payment:', error);
+
+        // Check if it's a Razorpay error
+        if (error.error) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: error.error
+            });
+        }
+
+        // Generic error response
+        res.status(500).json({
+            success: false,
+            error: 'Payment capture failed',
+            message: error.message
+        });
+    }
+};
+
