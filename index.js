@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 
 // Enable CORS
 app.use(cors({
-    origin: '*', // Be more specific in production
+    origin: 'https://razorpay-test-frontend-wine.vercel.app/', // Be more specific in production
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
