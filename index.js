@@ -6,6 +6,7 @@ import orderRoutes from './routes/orderRoutes.js';
 dotenv.config();
 
 const app = express();
+const port = process.env.PORT || 5000;
 
 // Enable CORS
 app.use(cors({
@@ -31,13 +32,12 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// For local development
+// For Vercel, we export the app instead of listening directly
+export default app;
+
+// For local development, you can still listen on a port
 if (process.env.NODE_ENV !== 'production') {
-    const port = process.env.PORT || 5000;
     app.listen(port, () => {
-        console.log(`Server is running on port ${port}`);
+        console.log(`Server is running on the port ${port}`);
     });
 }
-
-// For Vercel
-export default app;

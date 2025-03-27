@@ -18,5 +18,5 @@ export const createOrder = async (req, res) => {
         res.json(order);
     } catch (error) {
         res.status(500).json({ error: error.message });
-    }
+    } o
 }; 
