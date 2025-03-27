@@ -14,10 +14,10 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-const cors = require('cors');
-app.use(cors({
-    origin: 'razorpay-test-frontend-wine.vercel.app' // Replace with your frontend URL
-}));
+// const cors = require('cors');
+// app.use(cors({
+//     origin: 'razorpay-test-frontend-wine.vercel.app' // Replace with your frontend URL
+// }));
 
 // Middleware
 app.use(express.json());
