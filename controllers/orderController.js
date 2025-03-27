@@ -131,7 +131,7 @@ export const getPlans = async (req, res) => {
         const razorpayPlans = response.data.items.map(plan => ({
             name: plan.item.name,
             planId: plan.id,
-            price: `₹${plan.item.amount}`, // Convert amount from paise to rupees
+            price: `₹${plan.item.amount / 100}`, // Convert amount from paise to rupees
             features: predefinedPlans.find(p => p.planId === plan.id)?.features || [],
             description: plan.item.description,
             currency: plan.item.currency,
