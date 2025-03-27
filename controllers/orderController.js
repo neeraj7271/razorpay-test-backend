@@ -77,4 +77,95 @@ export const verifyPayment = async (req, res) => {
     }
 };
 
+export const getPlans = async (req, res) => {
+    try {
+        // Predefined plans data
+        const predefinedPlans = [
+            {
+                name: 'Basic',
+                planId: 'plan_QBlYx1h4pfIO9r',
+                price: '₹1',
+                features: [
+                    'Limited Access',
+                    '1 User',
+                    'Basic Support',
+                    '5GB Storage'
+                ]
+            },
+            {
+                name: 'Pro',
+                planId: 'plan_QBlZZmYEihtNxF',
+                price: '₹2',
+                features: [
+                    'Full Access',
+                    '5 Users',
+                    'Priority Support',
+                    '50GB Storage',
+                    'Advanced Analytics'
+                ]
+            },
+            {
+                name: 'Enterprise',
+                planId: 'plan_QBlZwNbWXDZqpn',
+                price: '₹3',
+                features: [
+                    'Unlimited Access',
+                    'Unlimited Users',
+                    '24/7 Dedicated Support',
+                    '1TB Storage',
+                    'Custom Integrations',
+                    'Advanced Security'
+                ]
+            }
+        ];
+
+        // Fetch plans from Razorpay API
+        const response = await axios.get('https://api.razorpay.com/v1/plans', {
+            auth: {
+                username: process.env.RAZORPAY_KEY_ID,
+                password: process.env.RAZORPAY_KEY_SECRET
+            }
+        });
+
+        // Transform the Razorpay plans data
+        const razorpayPlans = response.data.items.map(plan => ({
+            name: plan.item.name,
+            planId: plan.id,
+            price: `₹${plan.item.amount / 100}`, // Convert amount from paise to rupees
+            features: plan.item.notes ? Object.values(plan.item.notes) : [],
+            description: plan.item.description,
+            currency: plan.item.currency,
+            interval: plan.item.interval,
+            interval_count: plan.item.interval_count
+        }));
+
+        // Combine both predefined and Razorpay plans
+        const allPlans = [...predefinedPlans, ...razorpayPlans];
+
+        // Send the combined plans to the frontend
+        res.json({
+            success: true,
+            plans: allPlans
+        });
+
+    } catch (error) {
+        console.error('Error fetching plans:', error);
+
+        // Check if it's a Razorpay error
+        if (error.response && error.response.data) {
+            return res.status(error.response.status).json({
+                success: false,
+                error: error.response.data
+            });
+        }
+
+        // Generic error response
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch plans',
+            message: error.message
+        });
+    }
+};
+
 
