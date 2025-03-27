@@ -20,4 +20,16 @@ export const createOrder = async (req, res) => {
         console.error('Error creating order:', error); // Log the error
         res.status(500).json({ error: error.message });
     }
-}; 
+};
+
+export const capturePayment = async (req, res) => {
+    const { paymentId, orderId } = req.body;
+
+    try {
+        const response = await razorpay.payments.capture(paymentId, amount, currency);
+        res.json(response);
+    } catch (error) {
+        console.error('Error capturing payment:', error);
+        res.status(500).json({ error: error.message });
+    }
+}

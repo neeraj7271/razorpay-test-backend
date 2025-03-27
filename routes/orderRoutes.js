@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder } from '../controllers/orderController.js';
+import { createOrder, capturePayment } from '../controllers/orderController.js';
 
 const router = express.Router();
 
@@ -10,6 +10,8 @@ router.get('/test', (req, res) => {
 
 // Create order route
 router.post('/create-order', createOrder);
+
+router.post('/capture-payment', capturePayment);
 
 
 export default router;
