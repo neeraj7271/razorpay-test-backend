@@ -61,3 +61,20 @@ export const capturePayment = async (req, res) => {
     }
 };
 
+export const verifyPayment = async (req, res) => {
+    const { paymentId, orderId } = req.body;
+
+    try {
+        const payment = await razorpay.payments.fetch(paymentId);
+
+        if (payment.status === "captured") {
+            return res.json({ success: true, message: "Payment verified!" });
+        } else {
+            return res.json({ success: false, message: "Payment not captured!" });
+        }
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Error verifying payment" });
+    }
+};
+
+
