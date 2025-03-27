@@ -87,7 +87,6 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Basic',
                 planId: 'plan_QBlYx1h4pfIO9r',
-                price: '₹1',
                 features: [
                     'Limited Access',
                     '1 User',
@@ -98,7 +97,6 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Pro',
                 planId: 'plan_QBlZZmYEihtNxF',
-                price: '₹2',
                 features: [
                     'Full Access',
                     '5 Users',
@@ -110,7 +108,6 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Enterprise',
                 planId: 'plan_QBlZwNbWXDZqpn',
-                price: '₹3',
                 features: [
                     'Unlimited Access',
                     'Unlimited Users',
@@ -134,8 +131,8 @@ export const getPlans = async (req, res) => {
         const razorpayPlans = response.data.items.map(plan => ({
             name: plan.item.name,
             planId: plan.id,
-            price: `₹${plan.item.amount / 100}`, // Convert amount from paise to rupees
-            features: plan.item.notes ? Object.values(plan.item.notes) : [],
+            price: `₹${plan.item.amount}`, // Convert amount from paise to rupees
+            features: predefinedPlans.find(p => p.planId === plan.id)?.features || [],
             description: plan.item.description,
             currency: plan.item.currency,
             interval: plan.item.interval,
@@ -143,7 +140,7 @@ export const getPlans = async (req, res) => {
         }));
 
         // Combine both predefined and Razorpay plans
-        const allPlans = [...predefinedPlans, ...razorpayPlans];
+        const allPlans = razorpayPlans;
 
         // Send the combined plans to the frontend
         res.json({
