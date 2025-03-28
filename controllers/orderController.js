@@ -244,11 +244,11 @@ export const createSubscription = async (req, res) => {
 
     try {
         // If customerId is not provided, create a new customer
-        let customer;
-        if (!customerId) {
-            customer = await razorpay.customers.create(customerDetails);
-            customerId = customer.id; // Use the newly created customer ID
-        }
+        // let customer;
+        // if (!customerId) {
+        //     customer = await razorpay.customers.create(customerDetails);
+        //     customerId = customer.id; // Use the newly created customer ID
+        // }
 
         // Create a subscription
         let subscription = await razorpay.subscriptions.create({
