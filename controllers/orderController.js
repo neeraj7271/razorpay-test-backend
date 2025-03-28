@@ -240,7 +240,7 @@ export const getPlans = async (req, res) => {
 
 
 export const createSubscription = async (req, res) => {
-    const { planId, customerId, customerDetails, totalCount = 12 } = req.body;
+    let { planId, customerId, customerDetails, totalCount = 12 } = req.body;
 
     try {
         // If customerId is not provided, create a new customer
@@ -251,7 +251,7 @@ export const createSubscription = async (req, res) => {
         }
 
         // Create a subscription
-        const subscription = await razorpay.subscriptions.create({
+        let subscription = await razorpay.subscriptions.create({
             plan_id: planId,
             total_count: totalCount,
             customer_id: customerId,
