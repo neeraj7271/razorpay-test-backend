@@ -337,11 +337,9 @@ export const addAddonToSubscription = async (req, res) => {
 
 
 export const handleWebhook = (req, res) => {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET; // Ensure this is set
-    console.log('Webhook Secret:', secret); // Log the secret for debugging
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
-    // Verify the webhook signature
     const expectedSignature = crypto.createHmac('sha256', secret)
         .update(JSON.stringify(req.body))
         .digest('hex');
@@ -350,25 +348,60 @@ export const handleWebhook = (req, res) => {
         return res.status(400).send('Invalid signature');
     }
 
-    // Handle the webhook event
     const event = req.body.event;
 
     switch (event) {
         case 'payment.captured':
-            // Handle payment captured event
             console.log('Payment captured:', req.body);
-            // You can update your database or notify the user here
+            // Update your database or notify the user here
+            break;
+        case 'payment.failed':
+            console.log('Payment failed:', req.body);
+            // Handle payment failure (e.g., notify the user, update order status)
+            break;
+        case 'payment.authorized':
+            console.log('Payment authorized:', req.body);
+            // Handle payment authorization (e.g., notify the user)
+            break;
+        case 'payment.refunded':
+            console.log('Payment refunded:', req.body);
+            // Handle payment refund (e.g., update order status, notify the user)
+            break;
+        case 'payment.link.activated':
+            console.log('Payment link activated:', req.body);
+            // Handle payment link activation
+            break;
+        case 'payment.link.expired':
+            console.log('Payment link expired:', req.body);
+            // Handle payment link expiration
+            break;
+        case 'payment.link.failed':
+            console.log('Payment link failed:', req.body);
+            // Handle payment link failure
             break;
         case 'subscription.activated':
-            // Handle subscription activated event
             console.log('Subscription activated:', req.body);
-            // You can update your database or notify the user here
+            // Update your database or notify the user here
             break;
-        // Add more cases for other events you want to handle
+        case 'subscription.deactivated':
+            console.log('Subscription deactivated:', req.body);
+            // Handle subscription deactivation (e.g., notify the user)
+            break;
+        case 'subscription.ended':
+            console.log('Subscription ended:', req.body);
+            // Handle subscription end (e.g., notify the user, update status)
+            break;
+        case 'invoice.paid':
+            console.log('Invoice paid:', req.body);
+            // Handle invoice payment (e.g., update order status)
+            break;
+        case 'invoice.failed':
+            console.log('Invoice payment failed:', req.body);
+            // Handle invoice payment failure (e.g., notify the user)
+            break;
         default:
             console.log('Unhandled event:', event);
     }
 
-    // Respond to Razorpay
     res.status(200).send('Webhook received');
 };
