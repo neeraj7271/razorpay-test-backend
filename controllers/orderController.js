@@ -399,6 +399,10 @@ export const handleWebhook = (req, res) => {
             console.log('Invoice payment failed:', req.body);
             // Handle invoice payment failure (e.g., notify the user)
             break;
+        case 'order.paid':
+            console.log('Order paid:', req.body);
+            // Handle order paid event (e.g., update order status, notify the user)
+            break;
         default:
             console.log('Unhandled event:', event);
     }
