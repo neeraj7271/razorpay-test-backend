@@ -185,19 +185,55 @@ export const getPlans = async (req, res) => {
 };
 
 export const createSubscription = async (req, res) => {
-    const { planId, customerId } = req.body; // Get planId and customerId from request body
-    console.log(planId, customerId);
+    const { planId, customerId, totalCount = 12 } = req.body;
+
     try {
-        const subscription = razorpay.subscriptions.create({
-            plan_id: planId, // The plan ID you want to subscribe to
-            customer_id: customerId, // The customer ID
-            total_count: 12, // Number of payments to be made (e.g., 12 for monthly subscription for a year)
-            // You can add more options as needed
+        // Create a subscription
+        const subscription = await razorpay.subscriptions.create({
+            plan_id: planId,
+            total_count: totalCount,
+            quantity: 1,
+            customer_notify: 1, // Notify the customer about the subscription
+            notes: {
+                // Add any notes you want to associate with the subscription
+                created_at: new Date().toISOString(),
+                created_by: customerId
+            }
         });
-        res.status(200).json(subscription);
+
+        // Send the subscription details to frontend
+        res.json({
+            success: true,
+            subscription: {
+                id: subscription.id,
+                status: subscription.status,
+                current_start: subscription.current_start,
+                current_end: subscription.current_end,
+                plan_id: subscription.plan_id,
+                total_count: subscription.total_count,
+                paid_count: subscription.paid_count,
+                customer_notify: subscription.customer_notify,
+                short_url: subscription.short_url // Payment link that can be shared with customer
+            }
+        });
+
     } catch (error) {
         console.error('Error creating subscription:', error);
-        res.status(500).json({ message: 'Failed to create subscription', error: error.message });
+
+        // Check if it's a Razorpay error
+        if (error.error) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: error.error
+            });
+        }
+
+        // Generic error response
+        res.status(500).json({
+            success: false,
+            error: 'Subscription creation failed',
+            message: error.message
+        });
     }
 };
 
