@@ -243,12 +243,7 @@ export const createSubscription = async (req, res) => {
     let { planId, customerId, customerDetails, totalCount = 12 } = req.body;
 
     try {
-        // If customerId is not provided, create a new customer
-        // let customer;
-        // if (!customerId) {
-        //     customer = await razorpay.customers.create(customerDetails);
-        //     customerId = customer.id; // Use the newly created customer ID
-        // }
+
 
         // Create a subscription
         let subscription = await razorpay.subscriptions.create({
@@ -290,4 +285,88 @@ export const createSubscription = async (req, res) => {
             });
         }
     }
+};
+
+export const addAddonToSubscription = async (req, res) => {
+    const { subscriptionId, addons } = req.body; // Expecting an array of addons
+
+    try {
+        // Create the addons using the Razorpay instance
+        const addonPromises = addons.map(addon => {
+            return razorpay.addons.create({
+                subscription_id: subscriptionId,
+                items: [
+                    {
+                        name: addon.description,
+                        amount: addon.amount * 100, // Convert to paise
+                        currency: "INR",
+                        quantity: addon.quantity || 1 // Default to 1 if not provided
+                    }
+                ]
+            });
+        });
+
+        // Wait for all addon creation promises to resolve
+        const addonResponses = await Promise.all(addonPromises);
+
+        console.log("Addons Added:", addonResponses);
+        res.json({
+            success: true,
+            addons: addonResponses
+        });
+    } catch (error) {
+        console.error("Error adding addons:", error);
+
+        // Check if it's a Razorpay error
+        if (error.error) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: error.error
+            });
+        }
+
+        // Generic error response
+        res.status(500).json({
+            success: false,
+            error: 'Addon addition failed',
+            message: error.message
+        });
+    }
+};
+
+
+export const handleWebhook = (req, res) => {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET; // Replace with your actual webhook secret
+    const signature = req.headers['x-razorpay-signature'];
+
+    // Verify the webhook signature
+    const expectedSignature = crypto.createHmac('sha256', secret)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+
+    if (signature !== expectedSignature) {
+        return res.status(400).send('Invalid signature');
+    }
+
+    // Handle the webhook event
+    const event = req.body.event;
+
+    switch (event) {
+        case 'payment.captured':
+            // Handle payment captured event
+            console.log('Payment captured:', req.body);
+            // You can update your database or notify the user here
+            break;
+        case 'subscription.activated':
+            // Handle subscription activated event
+            console.log('Subscription activated:', req.body);
+            // You can update your database or notify the user here
+            break;
+        // Add more cases for other events you want to handle
+        default:
+            console.log('Unhandled event:', event);
+    }
+
+    // Respond to Razorpay
+    res.status(200).send('Webhook received');
 };
