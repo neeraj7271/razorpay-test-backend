@@ -8,6 +8,22 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+export const createCustomer = async (req, res) => {
+    const { name, email, contact } = req.body; // Get customer details from request body
+
+    try {
+        const customer = await razorpay.customers.create({
+            name,
+            email,
+            contact,
+        });
+        res.status(200).json(customer); // Return the customer object, which includes the customer ID
+    } catch (error) {
+        console.error('Error creating customer:', error);
+        res.status(500).json({ message: 'Failed to create customer', error: error.message });
+    }
+};
+
 // Controller function to create an order
 export const createOrder = async (req, res) => {
     const options = {
@@ -165,6 +181,23 @@ export const getPlans = async (req, res) => {
             error: 'Failed to fetch plans',
             message: error.message
         });
+    }
+};
+
+export const createSubscription = async (req, res) => {
+    const { planId, customerId } = req.body; // Get planId and customerId from request body
+
+    try {
+        const subscription = await razorpay.subscriptions.create({
+            plan_id: planId, // The plan ID you want to subscribe to
+            customer_id: customerId, // The customer ID
+            total_count: 12, // Number of payments to be made (e.g., 12 for monthly subscription for a year)
+            // You can add more options as needed
+        });
+        res.status(200).json(subscription);
+    } catch (error) {
+        console.error('Error creating subscription:', error);
+        res.status(500).json({ message: 'Failed to create subscription', error: error.message });
     }
 };
 
