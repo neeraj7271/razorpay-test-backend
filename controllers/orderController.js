@@ -184,10 +184,72 @@ export const getPlans = async (req, res) => {
     }
 };
 
+// export const createSubscription = async (req, res) => {
+//     const { planId, customerId, totalCount = 12 } = req.body;
+
+//     try {
+//         // Create a subscription
+//         const subscription = await razorpay.subscriptions.create({
+//             plan_id: planId,
+//             total_count: totalCount,
+//             customer_id: customerId,
+//             quantity: 1,
+//             customer_notify: 1, // Notify the customer about the subscription
+//             notes: {
+//                 // Add any notes you want to associate with the subscription
+//                 created_at: new Date().toISOString(),
+//                 created_by: customerId
+//             }
+//         });
+
+//         // Send the subscription details to frontend
+//         res.json({
+//             success: true,
+//             subscription: {
+//                 id: subscription.id,
+//                 status: subscription.status,
+//                 current_start: subscription.current_start,
+//                 current_end: subscription.current_end,
+//                 plan_id: subscription.plan_id,
+//                 total_count: subscription.total_count,
+//                 paid_count: subscription.paid_count,
+//                 customer_notify: subscription.customer_notify,
+//                 short_url: subscription.short_url // Payment link that can be shared with customer
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error creating subscription:', error);
+
+//         // Check if it's a Razorpay error
+//         if (error.error) {
+//             return res.status(error.statusCode).json({
+//                 success: false,
+//                 error: error.error
+//             });
+//         }
+
+//         // Generic error response
+//         res.status(500).json({
+//             success: false,
+//             error: 'Subscription creation failed',
+//             message: error.message
+//         });
+//     }
+// };
+
+
 export const createSubscription = async (req, res) => {
-    const { planId, customerId, totalCount = 12 } = req.body;
+    const { planId, customerId, customerDetails, totalCount = 12 } = req.body;
 
     try {
+        // If customerId is not provided, create a new customer
+        let customer;
+        if (!customerId) {
+            customer = await razorpay.customers.create(customerDetails);
+            customerId = customer.id; // Use the newly created customer ID
+        }
+
         // Create a subscription
         const subscription = await razorpay.subscriptions.create({
             plan_id: planId,
@@ -196,7 +258,6 @@ export const createSubscription = async (req, res) => {
             quantity: 1,
             customer_notify: 1, // Notify the customer about the subscription
             notes: {
-                // Add any notes you want to associate with the subscription
                 created_at: new Date().toISOString(),
                 created_by: customerId
             }
@@ -228,14 +289,5 @@ export const createSubscription = async (req, res) => {
                 error: error.error
             });
         }
-
-        // Generic error response
-        res.status(500).json({
-            success: false,
-            error: 'Subscription creation failed',
-            message: error.message
-        });
     }
 };
-
-
