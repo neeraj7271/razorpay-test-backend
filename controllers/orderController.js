@@ -192,6 +192,7 @@ export const createSubscription = async (req, res) => {
         const subscription = await razorpay.subscriptions.create({
             plan_id: planId,
             total_count: totalCount,
+            customer_id: customerId,
             quantity: 1,
             customer_notify: 1, // Notify the customer about the subscription
             notes: {
