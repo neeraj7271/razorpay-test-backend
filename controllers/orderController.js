@@ -186,9 +186,9 @@ export const getPlans = async (req, res) => {
 
 export const createSubscription = async (req, res) => {
     const { planId, customerId } = req.body; // Get planId and customerId from request body
-
+    console.log(planId, customerId);
     try {
-        const subscription = await razorpay.subscriptions.create({
+        const subscription = razorpay.subscriptions.create({
             plan_id: planId, // The plan ID you want to subscribe to
             customer_id: customerId, // The customer ID
             total_count: 12, // Number of payments to be made (e.g., 12 for monthly subscription for a year)
