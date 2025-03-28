@@ -391,6 +391,14 @@ export const handleWebhook = (req, res) => {
             console.log('Subscription ended:', req.body);
             // Handle subscription end (e.g., notify the user, update status)
             break;
+        case 'subscription.charged':
+            console.log('Subscription charged:', req.body);
+            // Handle subscription charged event (e.g., update status, notify user)
+            break;
+        case 'subscription.authenticated':
+            console.log('Subscription authenticated:', req.body);
+            // Handle subscription authenticated event (e.g., notify user)
+            break;
         case 'invoice.paid':
             console.log('Invoice paid:', req.body);
             // Handle invoice payment (e.g., update order status)
