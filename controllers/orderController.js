@@ -337,7 +337,8 @@ export const addAddonToSubscription = async (req, res) => {
 
 
 export const handleWebhook = (req, res) => {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET; // Replace with your actual webhook secret
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET; // Ensure this is set
+    console.log('Webhook Secret:', secret); // Log the secret for debugging
     const signature = req.headers['x-razorpay-signature'];
 
     // Verify the webhook signature
