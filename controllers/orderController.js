@@ -672,10 +672,10 @@ export const handleWebhook = (req, res) => {
 
     try {
         // Skip signature verification in development mode if configured
-        const skipVerification = process.env.NODE_ENV === 'development' &&
-            process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
+        // const skipVerification = process.env.NODE_ENV === 'development' &&
+        //     process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
 
-        if (!skipVerification && signature) {
+        if (signature) {
             // Verify signature if provided
             const expectedSignature = crypto.createHmac('sha256', secret)
                 .update(rawBody)
