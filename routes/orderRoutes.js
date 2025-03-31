@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, capturePayment, verifyPayment, getPlans, createCustomer, createSubscription, addAddonToSubscription, handleWebhook, validateDiscount, getCustomers, getUserSubscriptions, getSubscriptionDetails, getTransactionHistory, checkSubscriptionStatus } from '../controllers/orderController.js';
+import { createOrder, capturePayment, verifyPayment, getPlans, createCustomer, createSubscription, addAddonToSubscription, validateDiscount, getCustomers, getUserSubscriptions, getSubscriptionDetails, getTransactionHistory, checkSubscriptionStatus } from '../controllers/orderController.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -7,9 +7,7 @@ const router = express.Router();
 // Public routes
 router.get('/plans', getPlans);
 
-// Webhook route is handled separately in index.js to properly capture raw body
-// We still need to define the endpoint here for express to map to the controller
-router.post('/webhook', handleWebhook);
+// Note: Webhook route is now handled directly in index.js with the rawBodyCapture middleware
 
 // Protected routes that require authentication
 router.post('/create-customer', protect, createCustomer);

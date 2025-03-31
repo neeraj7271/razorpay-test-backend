@@ -682,21 +682,10 @@ export const handleWebhook = async (req, res) => {
         const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
         const signature = req.headers['x-razorpay-signature'];
 
-        // Capture raw body
-        let rawBody = '';
-        console.log("printing the data: ", req)
-        try {
-            rawBody = await new Promise((resolve, reject) => {
-                let data = '';
-                req.on('data', (chunk) => {
-                    data += chunk;
-                });
-                req.on('end', () => resolve(data));
-                req.on('error', (err) => reject(err));
-            });
-        } catch (error) {
-            console.error('Error reading request body:', error);
-            return; // Already sent response, so just return
+        // Raw body should be available as buffer from our middleware
+        if (!req.rawBody) {
+            console.error('Raw body not captured. Check middleware configuration.');
+            return;
         }
 
         // Skip signature verification in development if configured
@@ -708,7 +697,7 @@ export const handleWebhook = async (req, res) => {
 
             try {
                 const hmac = crypto.createHmac('sha256', webhookSecret);
-                hmac.update(rawBody, 'utf8');
+                hmac.update(req.rawBody);
                 const calculatedSignature = hmac.digest('hex');
 
                 console.log('Expected:', calculatedSignature);
@@ -728,7 +717,8 @@ export const handleWebhook = async (req, res) => {
 
         // Parse and process the webhook event asynchronously
         try {
-            const event = JSON.parse(rawBody);
+            // We can use req.body since our middleware should have parsed it
+            const event = req.body;
             console.log('Webhook event received:', event.event);
 
             // Process the event asynchronously

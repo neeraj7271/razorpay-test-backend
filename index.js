@@ -10,6 +10,7 @@ import { createPlan } from './controllers/adminController.js';
 import crypto from 'crypto';
 import bodyParser from 'body-parser';
 import { rawBodyCapture } from './middleware/rawBodyCapture.js';
+import { handleWebhook } from './controllers/orderController.js';
 
 dotenv.config();
 
@@ -23,12 +24,12 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: '*', // Be more specific in production
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-razorpay-signature'],
     credentials: true
 }));
 
 // Special handling for webhook route - needs raw body for signature verification
-app.post('/api/webhook', rawBodyCapture);
+app.post('/api/webhook', rawBodyCapture, handleWebhook);
 
 // Regular middleware for other routes
 app.use(express.json());
