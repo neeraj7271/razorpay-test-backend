@@ -696,9 +696,9 @@ export const addAddonToSubscription = async (req, res) => {
 
 // Process webhook events
 export const handleWebhook = async (req, res) => {
-    // if (req.method !== 'POST') {
-    //     return res.status(405).json({ message: 'Method Not Allowed' });
-    // }
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Method Not Allowed' });
+    }
 
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
