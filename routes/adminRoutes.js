@@ -17,13 +17,13 @@ router.use(protect);
 router.use(isAdmin);
 
 // Plan routes
-router.post('/plans', createPlan); //?done testing
-router.put('/plans/:id', updatePlan); //no need
-router.delete('/plans/:id', deletePlan);//not
+router.post('/plans', createPlan);
+router.put('/plans/:id', updatePlan);
+router.delete('/plans/:id', deletePlan);
 
 // Subscription management routes
-router.get('/subscriptions', getAllSubscriptions); //?done testing
-router.post('/subscriptions/:subscriptionId/discount', applyDiscount); //!NEED TO REVIEW AND TEST
-router.post('/subscriptions/:subscriptionId/extend', extendSubscription); //!NEED TO REVIEW AND TEST
+router.get('/subscriptions', getAllSubscriptions);
+router.post('/subscriptions/:subscriptionId/discount', applyDiscount);
+router.post('/subscriptions/:subscriptionId/extend', extendSubscription);
 
 export default router; 
