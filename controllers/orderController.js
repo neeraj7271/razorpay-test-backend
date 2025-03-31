@@ -767,16 +767,16 @@ const processWebhookEventAsync = async (event) => {
                     event.payload.payment.entity
                 );
                 break;
+            case 'subscription.charged':
+                await updateSubscriptionCharged(
+                    event.payload.subscription.entity.id,
+                    event.payload.subscription.entity
+                );
+                break;
             case 'subscription.activated':
                 await updateSubscriptionStatus(
                     event.payload.subscription.entity.id,
                     'active',
-                    event.payload.subscription.entity
-                );
-                break;
-            case 'subscription.charged':
-                await updateSubscriptionCharged(
-                    event.payload.subscription.entity.id,
                     event.payload.subscription.entity
                 );
                 break;
