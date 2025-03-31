@@ -662,11 +662,11 @@ export const addAddonToSubscription = async (req, res) => {
     }
 };
 
-// export const config = {
-//     api: {
-//         bodyParser: false, // Disable automatic JSON parsing in Vercel
-//     },
-// };
+export const config = {
+    api: {
+        bodyParser: false, // Disable automatic JSON parsing in Vercel
+    },
+};
 
 // export const handleWebhook = async (req, res) => {
 //     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
