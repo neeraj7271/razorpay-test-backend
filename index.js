@@ -26,11 +26,6 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
-app.use('/webhook', bodyParser.json({
-    verify: (req, res, buf) => {
-        req.rawBody = buf.toString(); // Store raw body for verification
-    }
-}));
 // app.use(bodyParser.json({ verify: rawBody }));
 app.use(cookieParser());
 

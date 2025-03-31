@@ -662,6 +662,12 @@ export const addAddonToSubscription = async (req, res) => {
     }
 };
 
+export const config = {
+    api: {
+        bodyParser: false, // Disable automatic JSON parsing in Vercel
+    },
+};
+
 // export const handleWebhook = async (req, res) => {
 //     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 //     const signature = req.headers['x-razorpay-signature'];
@@ -690,18 +696,28 @@ export const addAddonToSubscription = async (req, res) => {
 
 // Process webhook events
 export const handleWebhook = async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Method Not Allowed' });
+    }
+
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
-    if (!signature || !req.rawBody) {
-        console.error('Missing signature or raw body');
-        return res.status(400).json({ message: 'Invalid request' });
-    }
-
+    // Capture raw body manually
+    let rawBody = '';
     try {
-        // Verify the webhook signature
+        rawBody = await new Promise((resolve, reject) => {
+            let data = '';
+            req.on('data', (chunk) => {
+                data += chunk;
+            });
+            req.on('end', () => resolve(data));
+            req.on('error', (err) => reject(err));
+        });
+
+        // Verify the signature
         const hmac = crypto.createHmac('sha256', webhookSecret);
-        hmac.update(req.rawBody, 'utf8'); // Ensure encoding
+        hmac.update(rawBody, 'utf8');
         const calculatedSignature = hmac.digest('hex');
 
         if (signature !== calculatedSignature) {
@@ -710,7 +726,7 @@ export const handleWebhook = async (req, res) => {
         }
 
         // Process webhook event
-        const event = JSON.parse(req.rawBody); // Parse manually
+        const event = JSON.parse(rawBody);
         console.log('Webhook event received:', event);
 
         // Call your function to handle the event
