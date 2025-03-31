@@ -662,61 +662,57 @@ export const addAddonToSubscription = async (req, res) => {
     }
 };
 
-export const handleWebhook = (req, res) => {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    const signature = req.headers['x-razorpay-signature'];
-
-    // Get the raw body and event details
-    const rawBody = JSON.stringify(req.body);
-    const event = req.body.event;
-
+export const handleWebhook = async (req, res) => {
     try {
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
+
+        // Get the raw body and event details
+        const rawBody = req.rawBody || JSON.stringify(req.body);
+        const event = req.body.event;
+
+        // Log the incoming webhook request for debugging
+        console.log(`Webhook received: ${event}`);
+        console.log(`Signature in header: ${req.headers['x-razorpay-signature']}`);
+
         // Skip signature verification in development mode if configured
-        // const skipVerification = process.env.NODE_ENV === 'development' &&
-        //     process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
-
-        if (signature) {
-            // Verify signature if provided
-            const expectedSignature = crypto.createHmac('sha256', secret)
-                .update(rawBody)
-                .digest('hex');
-
-            if (signature !== expectedSignature) {
-                console.error('Invalid webhook signature');
-                console.log('Expected:', expectedSignature);
-                console.log('Received:', signature);
-                return res.status(400).send('Invalid signature');
-            }
-            console.log('Webhook signature verified successfully');
-        } else if (!skipVerification) {
-            console.warn('No signature provided or verification not skipped. This could be insecure.');
+        if (skipVerification && process.env.NODE_ENV === 'development') {
+            console.log('Skipping webhook signature verification in development mode.');
         } else {
-            console.log('Skipping webhook signature verification in development mode');
+            // Verify the webhook signature
+            const signature = req.headers['x-razorpay-signature'];
+            if (!signature) {
+                console.warn('No signature found in webhook request');
+                return res.status(400).json({ success: false, message: 'No signature found' });
+            }
+
+            const hmac = crypto.createHmac('sha256', webhookSecret);
+            hmac.update(rawBody);
+            const calculatedSignature = hmac.digest('hex');
+
+            console.log(`Expected signature: ${calculatedSignature}`);
+            console.log(`Received signature: ${signature}`);
+
+            if (signature !== calculatedSignature) {
+                console.error('Invalid webhook signature');
+                return res.status(400).json({ success: false, message: 'Invalid signature' });
+            }
+
+            console.log('Webhook signature verified successfully');
         }
 
-        // Log the event details
-        console.log(`Processing webhook event: ${event}`);
-
-        // Process webhook event
-        processWebhookEvent(event, req.body);
-
-        // Return success response
-        res.status(200).json({
-            success: true,
-            message: 'Webhook received and processed successfully'
-        });
+        // Process the webhook event
+        if (event && req.body.payload) {
+            await processWebhookEvent(event, req.body);
+            console.log(`Webhook event ${event} processed successfully`);
+            return res.status(200).json({ success: true, message: 'Webhook processed successfully' });
+        } else {
+            console.warn('Invalid webhook payload structure');
+            return res.status(400).json({ success: false, message: 'Invalid webhook payload' });
+        }
     } catch (error) {
-        // Log the error details
-        console.error('Error handling webhook:', error);
-        console.error('Event type:', event);
-        console.error('Payload:', JSON.stringify(req.body, null, 2).substring(0, 1000) + '...');
-
-        // Return error response
-        res.status(500).json({
-            success: false,
-            message: 'Error processing webhook',
-            error: error.message
-        });
+        console.error('Error processing webhook:', error);
+        return res.status(500).json({ success: false, message: 'Error processing webhook', error: error.message });
     }
 };
 

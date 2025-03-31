@@ -7,6 +7,14 @@ import orderRoutes from './routes/orderRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { createPlan } from './controllers/adminController.js';
+import mongoSanitize from 'express-mongo-sanitize';
+import helmet from 'helmet';
+import xss from 'xss-clean';
+import rateLimit from 'express-rate-limit';
+import hpp from 'hpp';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import { handleWebhook } from './controllers/orderController.js';
 
 dotenv.config();
 
@@ -23,7 +31,23 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+
+// Middleware to capture raw body for webhook verification
+app.post('/api/webhook', (req, res, next) => {
+    let rawBody = '';
+    req.on('data', (chunk) => {
+        rawBody += chunk.toString();
+    });
+
+    req.on('end', () => {
+        req.rawBody = rawBody;
+        next();
+    });
+}, handleWebhook);
+
+// Body parser middleware - MUST come AFTER the raw body middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // Routes

@@ -1,12 +1,12 @@
 import express from 'express';
-import { createOrder, capturePayment, verifyPayment, getPlans, createCustomer, createSubscription, addAddonToSubscription, handleWebhook, validateDiscount, getCustomers, getUserSubscriptions, getSubscriptionDetails, getTransactionHistory, checkSubscriptionStatus } from '../controllers/orderController.js';
+import { createOrder, capturePayment, verifyPayment, getPlans, createCustomer, createSubscription, addAddonToSubscription, validateDiscount, getCustomers, getUserSubscriptions, getSubscriptionDetails, getTransactionHistory, checkSubscriptionStatus } from '../controllers/orderController.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Public routes
 router.get('/plans', getPlans);
-router.post('/webhook', handleWebhook);
+// Webhook route is now handled directly in index.js
 
 // Protected routes that require authentication
 router.post('/create-customer', protect, createCustomer);//?done testing;
