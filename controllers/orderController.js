@@ -690,19 +690,19 @@ export const addAddonToSubscription = async (req, res) => {
 
 // Process webhook events
 export const handleWebhook = async (req, res) => {
-    console.log("webhook called", req.rawBody);
+    // console.log("webhook called", req.rawBody);
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
     console.log("signature", signature);
 
-    if (!signature || !req.rawBody) {
+    if (!signature) {
         console.error('Missing signature or raw body');
         return res.status(400).json({ message: 'Invalid request' });
     }
 
     // Verify the webhook signature
     const hmac = crypto.createHmac('sha256', webhookSecret);
-    hmac.update(req.rawBody, 'utf8'); // Specify encoding
+    // hmac.update(req.rawBody, 'utf8'); // Specify encoding
     const calculatedSignature = hmac.digest('hex');
 
     if (signature !== calculatedSignature) {
