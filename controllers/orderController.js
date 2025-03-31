@@ -690,36 +690,39 @@ export const addAddonToSubscription = async (req, res) => {
 
 // Process webhook events
 export const handleWebhook = async (req, res) => {
-    // console.log("webhook called", req.rawBody);
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
-    console.log("signature", signature);
 
-    if (!signature) {
+    if (!signature || !req.rawBody) {
         console.error('Missing signature or raw body');
         return res.status(400).json({ message: 'Invalid request' });
     }
 
-    // Verify the webhook signature
-    const hmac = crypto.createHmac('sha256', webhookSecret);
-    // hmac.update(req.rawBody, 'utf8'); // Specify encoding
-    const calculatedSignature = hmac.digest('hex');
-
-    if (signature !== calculatedSignature) {
-        console.error('Invalid webhook signature');
-        return res.status(400).json({ message: 'Invalid signature' });
-    }
-
-    // Process the webhook event
     try {
-        const event = JSON.parse(req.rawBody); // Parse manually to avoid Express JSON middleware issues
-        processWebhookEvent(event, event);
+        // Verify the webhook signature
+        const hmac = crypto.createHmac('sha256', webhookSecret);
+        hmac.update(req.rawBody, 'utf8'); // Ensure encoding
+        const calculatedSignature = hmac.digest('hex');
+
+        if (signature !== calculatedSignature) {
+            console.error('Invalid webhook signature');
+            return res.status(400).json({ message: 'Invalid signature' });
+        }
+
+        // Process webhook event
+        const event = JSON.parse(req.rawBody); // Parse manually
+        console.log('Webhook event received:', event);
+
+        // Call your function to handle the event
+        processWebhookEvent(event);
+
         res.status(200).json({ message: 'Webhook processed successfully' });
     } catch (error) {
         console.error('Error processing webhook:', error);
         res.status(500).json({ message: 'Error processing webhook' });
     }
 };
+
 
 
 const processWebhookEvent = async (event, data) => {

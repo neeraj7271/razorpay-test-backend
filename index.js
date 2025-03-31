@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { createPlan } from './controllers/adminController.js';
 import crypto from 'crypto';
+import bodyParser from 'body-parser';
 
 dotenv.config();
 
@@ -25,9 +26,9 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
-app.use(express.json({
+app.use('/webhook', bodyParser.json({
     verify: (req, res, buf) => {
-        req.rawBody = buf.toString(); // Store raw body for signature verification
+        req.rawBody = buf.toString(); // Store raw body for verification
     }
 }));
 // app.use(bodyParser.json({ verify: rawBody }));
