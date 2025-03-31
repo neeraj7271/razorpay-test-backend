@@ -753,13 +753,13 @@ const processWebhookEventAsync = async (event) => {
                     event.payload.payment.entity
                 );
                 break;
-            case 'payment.authorized':
-                await updatePaymentStatus(
-                    event.payload.payment.entity.id,
-                    'authorized',
-                    event.payload.payment.entity
-                );
-                break;
+            // case 'payment.authorized':
+            //     await updatePaymentStatus(
+            //         event.payload.payment.entity.id,
+            //         'authorized',
+            //         event.payload.payment.entity
+            //     );
+            //     break;
             case 'payment.refunded':
                 await updatePaymentStatus(
                     event.payload.payment.entity.id,
@@ -780,13 +780,13 @@ const processWebhookEventAsync = async (event) => {
                     event.payload.subscription.entity
                 );
                 break;
-            case 'subscription.authenticated':
-                await updateSubscriptionStatus(
-                    event.payload.subscription.entity.id,
-                    'authenticated',
-                    event.payload.subscription.entity
-                );
-                break;
+            // case 'subscription.authenticated':
+            //     await updateSubscriptionStatus(
+            //         event.payload.subscription.entity.id,
+            //         'authenticated',
+            //         event.payload.subscription.entity
+            //     );
+            //     break;
             case 'subscription.deactivated':
                 await updateSubscriptionStatus(
                     event.payload.subscription.entity.id,
