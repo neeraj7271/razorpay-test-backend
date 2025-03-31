@@ -668,119 +668,167 @@ export const config = {
     },
 };
 
-// export const handleWebhook = async (req, res) => {
-//     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-//     const signature = req.headers['x-razorpay-signature'];
-//     const rawBody = req.rawBody;
-
-//     // Verify the webhook signature
-//     const hmac = crypto.createHmac('sha256', webhookSecret);
-//     hmac.update(rawBody);
-//     const calculatedSignature = hmac.digest('hex');
-
-//     if (signature !== calculatedSignature) {
-//         console.error('Invalid webhook signature');
-//         return res.status(400).json({ message: 'Invalid signature' });
-//     }
-
-//     // Process the webhook event
-//     try {
-//         const event = req.body;
-//         processWebhookEvent(event, req.body);
-//         res.status(200).json({ message: 'Webhook processed successfully' });
-//     } catch (error) {
-//         console.error('Error processing webhook:', error);
-//         res.status(500).json({ message: 'Error processing webhook' });
-//     }
-// };
-
 // Process webhook events
 export const handleWebhook = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    const signature = req.headers['x-razorpay-signature'];
+    // Respond immediately to prevent timeout
+    res.status(200).json({ message: 'Webhook received' });
 
-    // Capture raw body manually
-    let rawBody = '';
     try {
-        rawBody = await new Promise((resolve, reject) => {
-            let data = '';
-            req.on('data', (chunk) => {
-                data += chunk;
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
+        const signature = req.headers['x-razorpay-signature'];
+
+        // Capture raw body
+        let rawBody = '';
+        try {
+            rawBody = await new Promise((resolve, reject) => {
+                let data = '';
+                req.on('data', (chunk) => {
+                    data += chunk;
+                });
+                req.on('end', () => resolve(data));
+                req.on('error', (err) => reject(err));
             });
-            req.on('end', () => resolve(data));
-            req.on('error', (err) => reject(err));
-        });
-
-        // Verify the signature
-        const hmac = crypto.createHmac('sha256', webhookSecret);
-        hmac.update(rawBody, 'utf8');
-        const calculatedSignature = hmac.digest('hex');
-
-        if (signature !== calculatedSignature) {
-            console.error('Invalid webhook signature');
-            return res.status(400).json({ message: 'Invalid signature' });
+        } catch (error) {
+            console.error('Error reading request body:', error);
+            return; // Already sent response, so just return
         }
 
-        // Process webhook event
-        const event = JSON.parse(rawBody);
-        console.log('Webhook event received:', event);
+        // Skip signature verification in development if configured
+        if (!skipVerification) {
+            if (!signature) {
+                console.warn('No signature found in webhook request');
+                return; // Already sent response, so just return
+            }
 
-        // Call your function to handle the event
-        processWebhookEvent(event);
+            try {
+                const hmac = crypto.createHmac('sha256', webhookSecret);
+                hmac.update(rawBody, 'utf8');
+                const calculatedSignature = hmac.digest('hex');
 
-        res.status(200).json({ message: 'Webhook processed successfully' });
+                console.log('Expected:', calculatedSignature);
+                console.log('Received:', signature);
+
+                if (signature !== calculatedSignature) {
+                    console.error('Invalid webhook signature');
+                    return; // Already sent response, so just return
+                }
+            } catch (error) {
+                console.error('Error verifying signature:', error);
+                return; // Already sent response, so just return
+            }
+        } else {
+            console.log('Skipping webhook signature verification in development mode');
+        }
+
+        // Parse and process the webhook event asynchronously
+        try {
+            const event = JSON.parse(rawBody);
+            console.log('Webhook event received:', event.event);
+
+            // Process the event asynchronously
+            processWebhookEventAsync(event).catch(err =>
+                console.error('Error processing webhook event:', err)
+            );
+        } catch (error) {
+            console.error('Error parsing webhook event:', error);
+        }
     } catch (error) {
-        console.error('Error processing webhook:', error);
-        res.status(500).json({ message: 'Error processing webhook' });
+        console.error('Error in webhook handler:', error);
     }
 };
 
-
-
-const processWebhookEvent = async (event, data) => {
-    switch (event) {
-        case 'payment.captured':
-            await updatePaymentStatus(data.payload.payment.entity.id, 'captured', data.payload.payment.entity);
-            break;
-        case 'payment.failed':
-            await updatePaymentStatus(data.payload.payment.entity.id, 'failed', data.payload.payment.entity);
-            break;
-        case 'payment.authorized':
-            await updatePaymentStatus(data.payload.payment.entity.id, 'authorized', data.payload.payment.entity);
-            break;
-        case 'payment.refunded':
-            await updatePaymentStatus(data.payload.payment.entity.id, 'refunded', data.payload.payment.entity);
-            break;
-        case 'subscription.activated':
-            await updateSubscriptionStatus(data.payload.subscription.entity.id, 'active', data.payload.subscription.entity);
-            break;
-        case 'subscription.charged':
-            await updateSubscriptionCharged(data.payload.subscription.entity.id, data.payload.subscription.entity);
-            break;
-        case 'subscription.authenticated':
-            await updateSubscriptionStatus(data.payload.subscription.entity.id, 'authenticated', data.payload.subscription.entity);
-            break;
-        case 'subscription.deactivated':
-            await updateSubscriptionStatus(data.payload.subscription.entity.id, 'halted', data.payload.subscription.entity);
-            break;
-        case 'subscription.ended':
-            await updateSubscriptionStatus(data.payload.subscription.entity.id, 'completed', data.payload.subscription.entity);
-            break;
-        case 'order.paid':
-            await updateOrderPaid(data.payload.order.entity.id, data.payload.order.entity);
-            break;
-        case 'invoice.paid':
-            await updateInvoiceStatus(data.payload.invoice.entity.id, 'paid', data.payload.invoice.entity);
-            break;
-        case 'invoice.failed':
-            await updateInvoiceStatus(data.payload.invoice.entity.id, 'failed', data.payload.invoice.entity);
-            break;
-        default:
-            console.log('Unhandled event:', event);
+// Process webhook events asynchronously
+const processWebhookEventAsync = async (event) => {
+    try {
+        // The event structure from Razorpay has the actual event type in event.event
+        // and payload data in event.payload
+        switch (event.event) {
+            case 'payment.captured':
+                await updatePaymentStatus(
+                    event.payload.payment.entity.id,
+                    'captured',
+                    event.payload.payment.entity
+                );
+                break;
+            case 'payment.failed':
+                await updatePaymentStatus(
+                    event.payload.payment.entity.id,
+                    'failed',
+                    event.payload.payment.entity
+                );
+                break;
+            case 'payment.authorized':
+                await updatePaymentStatus(
+                    event.payload.payment.entity.id,
+                    'authorized',
+                    event.payload.payment.entity
+                );
+                break;
+            case 'payment.refunded':
+                await updatePaymentStatus(
+                    event.payload.payment.entity.id,
+                    'refunded',
+                    event.payload.payment.entity
+                );
+                break;
+            case 'subscription.activated':
+                await updateSubscriptionStatus(
+                    event.payload.subscription.entity.id,
+                    'active',
+                    event.payload.subscription.entity
+                );
+                break;
+            case 'subscription.charged':
+                await updateSubscriptionCharged(
+                    event.payload.subscription.entity.id,
+                    event.payload.subscription.entity
+                );
+                break;
+            case 'subscription.authenticated':
+                await updateSubscriptionStatus(
+                    event.payload.subscription.entity.id,
+                    'authenticated',
+                    event.payload.subscription.entity
+                );
+                break;
+            case 'subscription.deactivated':
+                await updateSubscriptionStatus(
+                    event.payload.subscription.entity.id,
+                    'halted',
+                    event.payload.subscription.entity
+                );
+                break;
+            case 'subscription.ended':
+                await updateSubscriptionStatus(
+                    event.payload.subscription.entity.id,
+                    'completed',
+                    event.payload.subscription.entity
+                );
+                break;
+            case 'order.paid':
+                await updateOrderPaid(
+                    event.payload.order.entity.id,
+                    event.payload.order.entity
+                );
+                break;
+            case 'invoice.paid':
+                await updateInvoiceStatus(
+                    event.payload.invoice.entity.id,
+                    'paid',
+                    event.payload.invoice.entity
+                );
+                break;
+            default:
+                console.log('Unhandled webhook event type:', event.event);
+        }
+    } catch (error) {
+        console.error('Error processing webhook event:', error.message);
+        console.error(error);
     }
 };
 

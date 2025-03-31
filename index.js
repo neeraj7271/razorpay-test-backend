@@ -9,6 +9,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import { createPlan } from './controllers/adminController.js';
 import crypto from 'crypto';
 import bodyParser from 'body-parser';
+import { rawBodyCapture } from './middleware/rawBodyCapture.js';
 
 dotenv.config();
 
@@ -25,13 +26,17 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+
+// Special handling for webhook route - needs raw body for signature verification
+app.post('/api/webhook', rawBodyCapture);
+
+// Regular middleware for other routes
 app.use(express.json());
-// app.use(bodyParser.json({ verify: rawBody }));
 app.use(cookieParser());
 
 // Routes
-app.use('/api', orderRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api', orderRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Razorpay direct endpoints (no auth for easier frontend integration)
@@ -39,7 +44,7 @@ app.post('/api/razorpay/create-plan', createPlan);
 
 // Basic route for testing
 app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to Razorpay API' });
+    res.send('Razorpay Integration API is running!');
 });
 
 // Error handling middleware
@@ -48,12 +53,10 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
-        console.log(`Server is running on port ${port}`);
-    });
-}
+// Start the server
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});
 
 // For Vercel
 export default app;
