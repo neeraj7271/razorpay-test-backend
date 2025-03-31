@@ -5,7 +5,7 @@
 export const rawBodyCapture = (req, res, next) => {
     if (req.headers['content-type'] === 'application/json') {
         let data = '';
-        req.setEncoding('utf8');
+        // req.setEncoding('utf8');
 
         req.on('data', chunk => {
             data += chunk;
