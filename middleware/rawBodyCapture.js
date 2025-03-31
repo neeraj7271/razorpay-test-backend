@@ -5,6 +5,7 @@
 export const rawBodyCapture = (req, res, next) => {
     if (req.headers['content-type'] === 'application/json') {
         let data = '';
+        // Remove the encoding setting that's causing errors
         // req.setEncoding('utf8');
 
         req.on('data', chunk => {

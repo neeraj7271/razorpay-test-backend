@@ -684,6 +684,7 @@ export const handleWebhook = async (req, res) => {
 
         // Capture raw body
         let rawBody = '';
+        console.log("printing the data: ", req)
         try {
             rawBody = await new Promise((resolve, reject) => {
                 let data = '';
