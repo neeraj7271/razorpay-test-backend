@@ -24,7 +24,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
-app.use(bodyParser.json({ verify: rawBody }));
+// app.use(bodyParser.json({ verify: rawBody }));
 app.use(cookieParser());
 
 // Routes
