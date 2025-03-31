@@ -662,14 +662,45 @@ export const addAddonToSubscription = async (req, res) => {
     }
 };
 
+// export const handleWebhook = async (req, res) => {
+//     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+//     const signature = req.headers['x-razorpay-signature'];
+//     const rawBody = req.rawBody;
+
+//     // Verify the webhook signature
+//     const hmac = crypto.createHmac('sha256', webhookSecret);
+//     hmac.update(rawBody);
+//     const calculatedSignature = hmac.digest('hex');
+
+//     if (signature !== calculatedSignature) {
+//         console.error('Invalid webhook signature');
+//         return res.status(400).json({ message: 'Invalid signature' });
+//     }
+
+//     // Process the webhook event
+//     try {
+//         const event = req.body;
+//         processWebhookEvent(event, req.body);
+//         res.status(200).json({ message: 'Webhook processed successfully' });
+//     } catch (error) {
+//         console.error('Error processing webhook:', error);
+//         res.status(500).json({ message: 'Error processing webhook' });
+//     }
+// };
+
+// Process webhook events
 export const handleWebhook = async (req, res) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
-    const rawBody = req.rawBody;
+
+    if (!signature || !req.rawBody) {
+        console.error('Missing signature or raw body');
+        return res.status(400).json({ message: 'Invalid request' });
+    }
 
     // Verify the webhook signature
     const hmac = crypto.createHmac('sha256', webhookSecret);
-    hmac.update(rawBody);
+    hmac.update(req.rawBody, 'utf8'); // Specify encoding
     const calculatedSignature = hmac.digest('hex');
 
     if (signature !== calculatedSignature) {
@@ -679,8 +710,8 @@ export const handleWebhook = async (req, res) => {
 
     // Process the webhook event
     try {
-        const event = req.body;
-        processWebhookEvent(event, req.body);
+        const event = JSON.parse(req.rawBody); // Parse manually to avoid Express JSON middleware issues
+        processWebhookEvent(event, event);
         res.status(200).json({ message: 'Webhook processed successfully' });
     } catch (error) {
         console.error('Error processing webhook:', error);
@@ -688,7 +719,7 @@ export const handleWebhook = async (req, res) => {
     }
 };
 
-// Process webhook events
+
 const processWebhookEvent = async (event, data) => {
     switch (event) {
         case 'payment.captured':

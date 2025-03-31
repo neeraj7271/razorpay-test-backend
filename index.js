@@ -7,6 +7,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { createPlan } from './controllers/adminController.js';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -24,6 +25,11 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf.toString(); // Store raw body for signature verification
+    }
+}));
 // app.use(bodyParser.json({ verify: rawBody }));
 app.use(cookieParser());
 
