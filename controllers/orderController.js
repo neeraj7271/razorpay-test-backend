@@ -15,20 +15,22 @@ const razorpay = new Razorpay({
 });
 
 export const createCustomer = async (req, res) => {
+    console.log("createCustomer", req.body);
     try {
         let { name, email, contact } = req.body;
+        console.log("name, email, contact", name, email, contact);
         let userId = null;
 
         // If user is authenticated, use their information
-        if (req.user) {
-            const user = await User.findById(req.user.id);
-            if (user) {
-                name = name || user.name;
-                email = email || user.email;
-                contact = contact || user.phone;
-                userId = user._id;
-            }
-        }
+        // if (req.user) {
+        //     const user = await User.findById(req.user.id);
+        //     if (user) {
+        //         name = name || user.name;
+        //         email = email || user.email;
+        //         contact = contact || user.phone;
+        //         // userId = user._id;
+        //     }
+        // }
 
         // Validate required fields
         if (!name || !email || !contact) {
@@ -235,209 +237,212 @@ export const verifyPayment = async (req, res) => {
 
 export const getPlans = async (req, res) => {
     try {
-        // Predefined plans data with both yearly and quarterly options
+        // Define separate IDs for yearly and quarterly plans to avoid database conflicts
         const predefinedPlans = [
             // Yearly plans
             {
                 name: 'Basic',
-                planId: 'plan_QE3mD6WJXoxFuK',
+                planId: 'plan_QE3hhTUMBT4aCK',
                 type: 'yearly',
                 features: [
                     'Up to 5 users',
                     'Up to 5 companies',
                     'Single user Tally on Cloud',
                     'Email support'
-                ]
+                ],
+                price: 6000
             },
             {
                 name: 'Advance',
-                planId: 'plan_QE3klPxzXy1pp3',
+                planId: 'plan_QE3igMBvi33VIp',
                 type: 'yearly',
                 features: [
                     'Up to 15 users',
                     'Up to 15 companies',
                     'Single user Tally on Cloud',
                     'Call support'
-                ]
+                ],
+                price: 12000
             },
             {
                 name: 'Professional',
-                planId: 'plan_QE3l9wpI55W24z',
+                planId: 'plan_QE3jTkUD8zyDww',
                 type: 'yearly',
                 features: [
                     'Unlimited users',
                     'Unlimited companies',
                     'Mandatory Tally License',
                     'Executive support'
-                ]
+                ],
+                price: 25000
             },
-            // Quarterly plans
+            // Quarterly plans - each with unique IDs or use the yearly ones with different params
             {
                 name: 'Basic',
-                planId: 'plan_QE3mD6WJXoxFuK', // Replace with your actual quarterly plan ID
+                planId: 'plan_QE3hhTUMBT4aCK',
                 type: 'quarterly',
                 features: [
                     'Up to 5 users',
                     'Up to 5 companies',
                     'Single user Tally on Cloud',
                     'Email support'
-                ]
+                ],
+                price: 1500
             },
             {
                 name: 'Advance',
-                planId: 'plan_QE3klPxzXy1pp3', // Replace with your actual quarterly plan ID
+                planId: 'plan_QE3igMBvi33VIp',
                 type: 'quarterly',
                 features: [
                     'Up to 15 users',
                     'Up to 15 companies',
                     'Single user Tally on Cloud',
                     'Call support'
-                ]
+                ],
+                price: 6250
             },
             {
                 name: 'Professional',
-                planId: 'plan_QE3l9wpI55W24z', // Replace with your actual quarterly plan ID
+                planId: 'plan_QE3jTkUD8zyDww',
                 type: 'quarterly',
                 features: [
                     'Unlimited users',
                     'Unlimited companies',
                     'Mandatory Tally License',
                     'Executive support'
-                ]
+                ],
+                price: 3000
             }
         ];
 
-        // Fetch plans from Razorpay API
-        const response = await axios.get('https://api.razorpay.com/v1/plans', {
-            auth: {
-                username: process.env.RAZORPAY_KEY_ID,
-                password: process.env.RAZORPAY_KEY_SECRET
-            }
-        });
+        try {
+            // Fetch plans from Razorpay API
+            const response = await axios.get('https://api.razorpay.com/v1/plans', {
+                auth: {
+                    username: process.env.RAZORPAY_KEY_ID,
+                    password: process.env.RAZORPAY_KEY_SECRET
+                }
+            });
 
-        // Process and save plans in MongoDB
-        const razorpayPlans = response.data.items;
+            const razorpayPlans = response.data.items;
 
-        for (const plan of razorpayPlans) {
-            // Check if plan already exists
-            const existingPlan = await Plan.findOne({ razorpayPlanId: plan.id });
+            // Create plan lookup maps
+            const planInfo = {};
 
-            if (!existingPlan) {
-                // Find matching predefined plan
-                const predefinedPlan = predefinedPlans.find(p => p.planId === plan.id);
-                const features = predefinedPlan?.features || [];
-                const period = predefinedPlan?.period || 'yearly'; // Default to yearly if not specified
-
-                // Create new plan in MongoDB
-                const newPlan = new Plan({
-                    razorpayPlanId: plan.id,
+            // Process Razorpay plans and get their details
+            for (const plan of razorpayPlans) {
+                planInfo[plan.id] = {
+                    id: plan.id,
                     name: plan.item.name,
-                    period: plan.type,
-                    description: plan.item.description,
-                    amount: plan.item.amount / 100,
+                    description: plan.item.description || '',
+                    price: plan.item.amount / 100,
                     currency: plan.item.currency,
                     interval: plan.period,
-                    intervalCount: plan.interval,
-                    features: features,
-                    billingPeriod: period,
-                });
+                    intervalCount: plan.interval
+                };
+            }
+        } catch (error) {
+            console.error('Could not fetch plans from Razorpay:', error);
+            // Continue with predefined plans even if Razorpay fetch fails
+        }
 
-                await newPlan.save();
+        // Prepare plans data based only on predefined plans
+        const yearlyPlans = [];
+        const quarterlyPlans = [];
+
+        // Process plans without saving to database
+        for (const plan of predefinedPlans) {
+            const formattedPlan = {
+                id: plan.planId,
+                planId: plan.planId,
+                name: plan.name,
+                price: plan.price,
+                currency: 'INR',
+                description: `${plan.name} Plan (${plan.type === 'yearly' ? 'Annual' : 'Quarterly'})`,
+                features: plan.features,
+                type: plan.type,
+                interval: plan.type === 'yearly' ? 'year' : 'month',
+                intervalCount: plan.type === 'yearly' ? 1 : 3
+            };
+
+            if (plan.type === 'yearly') {
+                yearlyPlans.push(formattedPlan);
+            } else if (plan.type === 'quarterly') {
+                quarterlyPlans.push(formattedPlan);
             }
         }
 
-        // Fetch all plans from MongoDB
-        const plans = await Plan.find({ isActive: true });
+        // Sort plans by price
+        yearlyPlans.sort((a, b) => a.price - b.price);
+        quarterlyPlans.sort((a, b) => a.price - b.price);
 
-        // Group plans by type (Basic, Advance, Professional) and billing period (yearly, quarterly)
-        // const groupedPlans = {};
+        // Group plans by level (Basic, Advance, Professional)
+        const groupedPlans = {
+            yearly: {
+                Basic: yearlyPlans.find(p => p.name === 'Basic'),
+                Advance: yearlyPlans.find(p => p.name === 'Advance'),
+                Professional: yearlyPlans.find(p => p.name === 'Professional')
+            },
+            quarterly: {
+                Basic: quarterlyPlans.find(p => p.name === 'Basic'),
+                Advance: quarterlyPlans.find(p => p.name === 'Advance'),
+                Professional: quarterlyPlans.find(p => p.name === 'Professional')
+            }
+        };
 
-        // plans.forEach(plan => {
-        //     // Determine the plan type from the name
-        //     let type = 'Basic';
-        //     if (plan.name.includes('Advance')) type = 'Advance';
-        //     if (plan.name.includes('Professional')) type = 'Professional';
-
-        //     // Determine billing period
-        //     const period = plan.billingPeriod ||
-        //         (plan.name.includes('Quarterly') ? 'quarterly' : 'yearly');
-
-        //     // Create type key if it doesn't exist
-        //     if (!groupedPlans[type]) {
-        //         groupedPlans[type] = { yearly: null, quarterly: null };
-        //     }
-
-        //     // Store the plan in the appropriate category
-        //     groupedPlans[type][period] = {
-        //         name: plan.name,
-        //         planId: plan.razorpayPlanId,
-        //         price: `₹${plan.amount}`,
-        //         features: plan.features,
-        //         description: plan.description,
-        //         currency: plan.currency,
-        //         interval: plan.interval,
-        //         interval_count: plan.intervalCount,
-        //         period: period
-        //     };
-        // });
-
-        // Return plans to frontend
+        // Return all plan data as arrays and grouped object
         res.json({
             success: true,
-            plans: plans,
+            plans: [...yearlyPlans, ...quarterlyPlans].sort((a, b) => a.price - b.price),
+            yearlyPlans: yearlyPlans,
+            quarterlyPlans: quarterlyPlans,
+            groupedPlans: groupedPlans
         });
     } catch (error) {
-        console.error('Error fetching plans:', error);
-
-        if (error.response && error.response.data) {
-            return res.status(error.response.status).json({
-                success: false,
-                error: error.response.data
-            });
-        }
-
+        console.error('Error in getPlans:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to fetch plans',
-            message: error.message
+            message: 'Failed to fetch plans',
+            error: error.message
         });
     }
 };
 
 export const createSubscription = async (req, res) => {
+    console.log("createSubscription", req.body);
     let { planId, customerId, totalCount = 12, startAt, billingPeriod } = req.body;
 
     try {
         // If user is authenticated but customerId is not provided, try to find or create customer
-        if (!customerId && req.user) {
-            const user = await User.findById(req.user.id);
-            if (user) {
-                // Try to find existing customer
-                let userCustomer = await Customer.findOne({ userId: user._id });
+        // if (!customerId) {
+        //    // const user = await User.findById(req.user.id);
+        //     if (user) {
+        //         // Try to find existing customer
+        //         let userCustomer = await Customer.findOne({ userId: user._id });
 
-                if (userCustomer) {
-                    customerId = userCustomer.razorpayCustomerId;
-                } else {
-                    // Create new customer
-                    const razorpayCustomer = await razorpay.customers.create({
-                        name: user.name,
-                        email: user.email,
-                        contact: user.phone || "Not provided"
-                    });
+        //         if (userCustomer) {
+        //             customerId = userCustomer.razorpayCustomerId;
+        //         } else {
+        //             // Create new customer
+        //             const razorpayCustomer = await razorpay.customers.create({
+        //                 name: user.name,
+        //                 email: user.email,
+        //                 contact: user.phone || "Not provided"
+        //             });
 
-                    userCustomer = new Customer({
-                        razorpayCustomerId: razorpayCustomer.id,
-                        name: user.name,
-                        email: user.email,
-                        contact: user.phone || "Not provided",
-                        userId: user._id
-                    });
+        //             userCustomer = new Customer({
+        //                 razorpayCustomerId: razorpayCustomer.id,
+        //                 name: user.name,
+        //                 email: user.email,
+        //                 contact: user.phone || "Not provided",
+        //                 userId: user._id
+        //             });
 
-                    await userCustomer.save();
-                    customerId = userCustomer.razorpayCustomerId;
-                }
-            }
-        }
+        //             await userCustomer.save();
+        //             customerId = userCustomer.razorpayCustomerId;
+        //         }
+        //     }
+        // }
 
         // Validate required fields
         if (!customerId) {
@@ -456,6 +461,7 @@ export const createSubscription = async (req, res) => {
 
         // Find customer in MongoDB
         let customer = await Customer.findOne({ razorpayCustomerId: customerId });
+        console.log("printing the customer recieved from the body", customer);
 
         if (!customer) {
             // If customerId exists but not in our DB, try to find from Razorpay and create in DB
@@ -481,8 +487,10 @@ export const createSubscription = async (req, res) => {
             }
         }
 
-        // Fetch plan details
+        // Fetch plan detailscon
+        console.log("planId fething the plan", planId);
         let plan = await Plan.findOne({ razorpayPlanId: planId });
+        console.log("plan", plan);
 
         if (!plan) {
             // Fetch plan details from Razorpay
@@ -543,9 +551,58 @@ export const createSubscription = async (req, res) => {
             }
         };
 
-        // Add start_at if provided
+        // Handle start_at parameter for future subscription scheduling
+        // If startAt is provided, convert it to a Unix timestamp if needed
         if (startAt) {
-            subscriptionOptions.start_at = startAt;
+            let startAtTimestamp = startAt;
+
+            // If startAt is a Date object or date string, convert to timestamp in seconds
+            if (typeof startAt === 'string' && !startAt.match(/^\d+$/)) {
+                startAtTimestamp = Math.floor(new Date(startAt).getTime() / 1000);
+            } else if (startAt instanceof Date) {
+                startAtTimestamp = Math.floor(startAt.getTime() / 1000);
+            } else if (typeof startAt === 'number' && startAt < 10000000000) {
+                // If it's already a timestamp in seconds, use as is
+                startAtTimestamp = startAt;
+            } else if (typeof startAt === 'number') {
+                // If it's a timestamp in milliseconds, convert to seconds
+                startAtTimestamp = Math.floor(startAt / 1000);
+            }
+
+            // Ensure the timestamp is at least 24 hours in the future (Razorpay requirement)
+            const minimumStartAt = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+            if (startAtTimestamp < minimumStartAt) {
+                startAtTimestamp = minimumStartAt;
+            }
+
+            subscriptionOptions.start_at = startAtTimestamp;
+            subscriptionOptions.notes.scheduledStart = new Date(startAtTimestamp * 1000).toISOString();
+        }
+
+        // Add expire_by if needed (for auto-cancellation if not authorized)
+        if (startAt) {
+            // Set expiry to 7 days from now or 1 day before start_at, whichever is earlier
+            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+            const oneDayBeforeStart = subscriptionOptions.start_at - 24 * 60 * 60;
+            subscriptionOptions.expire_by = Math.min(sevenDaysFromNow, oneDayBeforeStart);
+        } else {
+            // For immediate subscriptions, set to expire after 7 days if not authenticated
+            subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+        }
+
+        console.log("Subscription options being sent to Razorpay:", JSON.stringify(subscriptionOptions, null, 2));
+
+        // Also verify the plan exists in Razorpay before trying to create subscription
+        try {
+            const planCheck = await razorpay.plans.fetch(planId);
+            console.log("Plan exists in Razorpay:", planCheck.id);
+        } catch (error) {
+            console.error("Plan doesn't exist in Razorpay:", error.error.description);
+            return res.status(404).json({
+                success: false,
+                message: "The plan ID doesn't exist in Razorpay",
+                error: error.error
+            });
         }
 
         // Create subscription in Razorpay
@@ -557,13 +614,15 @@ export const createSubscription = async (req, res) => {
             customerId: customer._id,
             planId: plan._id,
             status: subscription.status,
-            startAt: startAt ? new Date(startAt * 1000) : null,
+            startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : null,
+            chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : null,
             totalCount: subscription.total_count,
             paidCount: subscription.paid_count,
             billingPeriod: billingPeriod || plan.billingPeriod,
             notes: {
                 ...subscription.notes,
-                pendingActivation: true
+                pendingActivation: true,
+                isScheduled: !!subscription.start_at
             }
         });
 
@@ -575,7 +634,8 @@ export const createSubscription = async (req, res) => {
             subscription: {
                 id: subscription.id,
                 status: subscription.status,
-                startAt: startAt,
+                startAt: subscription.start_at,
+                chargeAt: subscription.charge_at,
                 current_start: subscription.current_start,
                 current_end: subscription.current_end,
                 plan_id: subscription.plan_id,
