@@ -901,44 +901,45 @@ export const createSubscription = async (req, res) => {
             });
 
             await newSubscription.save();
-        }
 
-        // Return subscription details
-        res.status(200).json({
-            success: true,
-            subscription: {
-                id: subscription.id,
-                status: subscription.status,
-                startAt: subscription.start_at,
-                chargeAt: subscription.charge_at,
-                current_start: subscription.current_start,
-                current_end: subscription.current_end,
-                plan_id: subscription.plan_id,
-                total_count: subscription.total_count,
-                paid_count: subscription.paid_count,
-                customer_notify: subscription.customer_notify,
-                short_url: subscription.short_url,
-                billingPeriod: billingPeriod || plan.billingPeriod,
-                isRenewal: isRenewal,
-                isFreeTrialEnabled: isFreeTrialEnabled,
-                trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
-            },
-            customer: {
-                id: customer._id,
-                razorpayCustomerId: customer.razorpayCustomerId,
-                name: customer.name,
-                email: customer.email
-            },
-            plan: {
-                id: plan._id,
-                razorpayPlanId: plan.razorpayPlanId,
-                name: plan.name,
-                amount: plan.amount,
-                currency: plan.currency,
-                interval: plan.interval,
-                billingPeriod: plan.billingPeriod
-            }
-        });
+
+            // Return subscription details
+            res.status(200).json({
+                success: true,
+                subscription: {
+                    id: subscription.id,
+                    status: subscription.status,
+                    startAt: subscription.start_at,
+                    chargeAt: subscription.charge_at,
+                    current_start: subscription.current_start,
+                    current_end: subscription.current_end,
+                    plan_id: subscription.plan_id,
+                    total_count: subscription.total_count,
+                    paid_count: subscription.paid_count,
+                    customer_notify: subscription.customer_notify,
+                    short_url: subscription.short_url,
+                    billingPeriod: billingPeriod || plan.billingPeriod,
+                    isRenewal: isRenewal,
+                    isFreeTrialEnabled: isFreeTrialEnabled,
+                    trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
+                },
+                customer: {
+                    id: customer._id,
+                    razorpayCustomerId: customer.razorpayCustomerId,
+                    name: customer.name,
+                    email: customer.email
+                },
+                plan: {
+                    id: plan._id,
+                    razorpayPlanId: plan.razorpayPlanId,
+                    name: plan.name,
+                    amount: plan.amount,
+                    currency: plan.currency,
+                    interval: plan.interval,
+                    billingPeriod: plan.billingPeriod
+                }
+            });
+        }
 
     } catch (error) {
         console.error('Error creating subscription:', error);
