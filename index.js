@@ -15,7 +15,7 @@ import { handleWebhook } from './controllers/orderController.js';
 dotenv.config();
 
 // Connect to MongoDB
-connectDB();
+await connectDB();
 
 const app = express();
 const port = process.env.PORT || 5000;
