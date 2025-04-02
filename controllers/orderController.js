@@ -339,14 +339,11 @@ export const getPlans = async (req, res) => {
 };
 
 export const createSubscription = async (req, res) => {
-    //!start_at add krna hai
     let { planId, customerId, totalCount = 12, startAt } = req.body;
 
-    console.log(req.body)
     try {
         // If user is authenticated but customerId is not provided, try to find or create customer
         if (!customerId && req.user) {
-            console.log("customerId not provided, trying to find or create customer")
             const user = await User.findById(req.user.id);
             if (user) {
                 // Try to find existing customer
@@ -376,17 +373,18 @@ export const createSubscription = async (req, res) => {
             }
         }
 
+        // Validate required fields
         if (!customerId) {
             return res.status(400).json({
                 success: false,
-                error: 'Customer ID is required'
+                message: 'Customer ID is required'
             });
         }
 
         if (!planId) {
             return res.status(400).json({
                 success: false,
-                error: 'Plan ID is required'
+                message: 'Plan ID is required'
             });
         }
 
@@ -411,8 +409,8 @@ export const createSubscription = async (req, res) => {
                 console.error('Error fetching customer from Razorpay:', error);
                 return res.status(404).json({
                     success: false,
-                    error: 'Customer not found',
-                    message: error.message
+                    message: 'Customer not found',
+                    error: error.message
                 });
             }
         }
@@ -440,17 +438,16 @@ export const createSubscription = async (req, res) => {
                 console.error('Error fetching plan from Razorpay:', error);
                 return res.status(404).json({
                     success: false,
-                    error: 'Plan not found',
-                    message: error.message
+                    message: 'Plan not found',
+                    error: error.message
                 });
             }
         }
 
-        // Create a subscription
-        let subscription = await razorpay.subscriptions.create({
+        // Create subscription options
+        const subscriptionOptions = {
             plan_id: planId,
             total_count: totalCount,
-            start_at: startAt,
             customer_id: customerId,
             quantity: 1,
             customer_notify: 1,
@@ -459,70 +456,35 @@ export const createSubscription = async (req, res) => {
                 created_by: customerId,
                 userId: req.user ? req.user.id : null
             }
+        };
+
+        // Add start_at if provided
+        if (startAt) {
+            subscriptionOptions.start_at = startAt;
+        }
+
+        // Create subscription in Razorpay
+        const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+
+        // Create subscription in our database
+        const newSubscription = new Subscription({
+            razorpaySubscriptionId: subscription.id,
+            customerId: customer._id,
+            planId: plan._id,
+            status: subscription.status,
+            startAt: startAt ? new Date(startAt * 1000) : null,
+            totalCount: subscription.total_count,
+            paidCount: subscription.paid_count,
+            notes: {
+                ...subscription.notes,
+                pendingActivation: true
+            }
         });
 
-        // Create a placeholder subscription entry with status 'created'
-        // For localhost testing where webhooks aren't available
-        let newSubscription = null;
-        if (customer && plan) {
-            // First check if this subscription already exists
-            const existingSubscription = await Subscription.findOne({
-                razorpaySubscriptionId: subscription.id
-            });
+        await newSubscription.save();
 
-            if (!existingSubscription) {
-                newSubscription = new Subscription({
-                    razorpaySubscriptionId: subscription.id,
-                    customerId: customer._id,
-                    planId: plan._id,
-                    status: subscription.status, // Will be 'created' initially
-                    startAt: startAt,
-                    totalCount: subscription.total_count,
-                    paidCount: subscription.paid_count,
-                    notes: {
-                        ...subscription.notes,
-                        pendingActivation: true // Flag to indicate this needs activation
-                    }
-                });
-
-                await newSubscription.save();
-                console.log(`Subscription created with ID ${subscription.id} and status ${subscription.status}`);
-            } else {
-                newSubscription = existingSubscription;
-                console.log(`Subscription ${subscription.id} already exists with status ${existingSubscription.status}`);
-            }
-        }
-
-        // For local testing without webhooks, poll for subscription status
-        if (process.env.NODE_ENV === 'development') {
-            // Start a background process to check subscription status after a delay
-            setTimeout(async () => {
-                try {
-                    // Poll Razorpay for the current status
-                    const updatedSubscription = await razorpay.subscriptions.fetch(subscription.id);
-
-                    // If status has changed, update our record
-                    if (updatedSubscription.status !== subscription.status) {
-                        console.log(`Subscription ${subscription.id} status changed from ${subscription.status} to ${updatedSubscription.status}`);
-
-                        if (newSubscription) {
-                            newSubscription.status = updatedSubscription.status;
-                            newSubscription.notes = {
-                                ...newSubscription.notes,
-                                statusUpdated: new Date().toISOString(),
-                                updatedStatus: updatedSubscription.status
-                            };
-                            await newSubscription.save();
-                        }
-                    }
-                } catch (error) {
-                    console.error(`Error polling subscription ${subscription.id}:`, error);
-                }
-            }, 5000); // Check after 5 seconds
-        }
-
-        // Send the subscription details to frontend
-        res.json({
+        // Return subscription details
+        res.status(200).json({
             success: true,
             subscription: {
                 id: subscription.id,
@@ -536,38 +498,38 @@ export const createSubscription = async (req, res) => {
                 customer_notify: subscription.customer_notify,
                 short_url: subscription.short_url
             },
-            customer: customer ? {
+            customer: {
                 id: customer._id,
                 razorpayCustomerId: customer.razorpayCustomerId,
                 name: customer.name,
                 email: customer.email
-            } : null,
-            plan: plan ? {
+            },
+            plan: {
                 id: plan._id,
                 razorpayPlanId: plan.razorpayPlanId,
                 name: plan.name,
                 amount: plan.amount,
                 currency: plan.currency,
                 interval: plan.interval
-            } : null,
-            dbSubscription: newSubscription,
-            message: "Subscription created. Status will be updated when payment is completed."
+            }
         });
 
     } catch (error) {
         console.error('Error creating subscription:', error);
 
+        // Handle specific Razorpay errors
         if (error.error) {
-            return res.status(error.statusCode).json({
+            return res.status(error.statusCode || 400).json({
                 success: false,
+                message: error.error.description || 'Failed to create subscription',
                 error: error.error
             });
         }
 
         res.status(500).json({
             success: false,
-            error: 'Subscription creation failed',
-            message: error.message
+            message: 'Failed to create subscription',
+            error: error.message
         });
     }
 };
