@@ -345,9 +345,11 @@ export const createSubscription = async (req, res) => {
     //!start_at add krna hai
     let { planId, customerId, totalCount = 12, startAt } = req.body;
 
+    console.log(req.body)
     try {
         // If user is authenticated but customerId is not provided, try to find or create customer
         if (!customerId && req.user) {
+            console.log("customerId not provided, trying to find or create customer")
             const user = await User.findById(req.user.id);
             if (user) {
                 // Try to find existing customer
@@ -422,7 +424,7 @@ export const createSubscription = async (req, res) => {
         let plan = await Plan.findOne({ razorpayPlanId: planId });
 
         if (!plan) {
-            // If plan doesn't exist, fetch from Razorpay and create new
+            // Fetch plan details from Razorpay
             try {
                 const razorpayPlan = await razorpay.plans.fetch(planId);
 
@@ -437,7 +439,6 @@ export const createSubscription = async (req, res) => {
                 });
 
                 await plan.save();
-                console.log(`Created new plan: ${planId}`);
             } catch (error) {
                 console.error('Error fetching plan from Razorpay:', error);
                 return res.status(404).json({
@@ -445,25 +446,6 @@ export const createSubscription = async (req, res) => {
                     error: 'Plan not found',
                     message: error.message
                 });
-            }
-        } else {
-            // If plan exists, update it with latest data from Razorpay
-            try {
-                const razorpayPlan = await razorpay.plans.fetch(planId);
-
-                plan.name = razorpayPlan.item.name;
-                plan.description = razorpayPlan.item.description;
-                plan.amount = razorpayPlan.item.amount / 100;
-                plan.currency = razorpayPlan.item.currency;
-                plan.interval = razorpayPlan.period;
-                plan.intervalCount = razorpayPlan.interval;
-
-                await plan.save();
-                console.log(`Updated existing plan: ${planId}`);
-            } catch (error) {
-                console.error('Error updating plan from Razorpay:', error);
-                // Continue with existing plan data if update fails
-                console.log(`Using existing plan data for: ${planId}`);
             }
         }
 
