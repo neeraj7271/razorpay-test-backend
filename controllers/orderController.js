@@ -692,6 +692,7 @@ export const createSubscription = async (req, res) => {
     let { planId, customerId, totalCount = 12, billingPeriod } = req.body;
 
     try {
+        await connectDB();
         // Validate required fields
         if (!customerId) {
             return res.status(400).json({
