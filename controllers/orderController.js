@@ -47,9 +47,7 @@ export const createCustomer = async (req, res) => {
         if (existingCustomer) {
             return res.status(200).json({
                 success: true,
-                message: 'Customer already exists for this user',
-                customer: existingCustomer,
-                isExisting: true
+                customer: existingCustomer
             });
         }
 
@@ -83,8 +81,7 @@ export const createCustomer = async (req, res) => {
                 contact: customer.contact,
                 userId: customer.userId,
                 createdAt: customer.createdAt
-            },
-            isExisting: false
+            }
         });
     } catch (error) {
         console.error('Error creating customer:', error);
