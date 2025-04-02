@@ -242,35 +242,32 @@ export const getPlans = async (req, res) => {
         const predefinedPlans = [
             {
                 name: 'Basic',
-                planId: 'plan_QBlYx1h4pfIO9r',
+                planId: 'plan_QE3mD6WJXoxFuK',
                 features: [
-                    'Limited Access',
-                    '1 User',
-                    'Basic Support',
-                    '5GB Storage'
+                    'Up to 5 users',
+                    'Up to 5 companies',
+                    'Single user Tally on Cloud',
+                    'Email support'
                 ]
             },
             {
-                name: 'Pro',
-                planId: 'plan_QBlZZmYEihtNxF',
+                name: 'Advance',
+                planId: 'plan_QE3klPxzXy1pp3',
                 features: [
-                    'Full Access',
-                    '5 Users',
-                    'Priority Support',
-                    '50GB Storage',
-                    'Advanced Analytics'
+                    'Up to 15 users',
+                    'Up to 15 companies',
+                    'Single user Tally on Cloud',
+                    'Call support'
                 ]
             },
             {
-                name: 'Enterprise',
-                planId: 'plan_QBlZwNbWXDZqpn',
+                name: 'Professional',
+                planId: 'plan_QE3l9wpI55W24z',
                 features: [
-                    'Unlimited Access',
-                    'Unlimited Users',
-                    '24/7 Dedicated Support',
-                    '1TB Storage',
-                    'Custom Integrations',
-                    'Advanced Security'
+                    'Unlimited users',
+                    'Unlimited companies',
+                    'Mandatory Tally License',
+                    'Executive support'
                 ]
             }
         ];
@@ -345,7 +342,8 @@ export const getPlans = async (req, res) => {
 };
 
 export const createSubscription = async (req, res) => {
-    let { planId, customerId, totalCount = 12 } = req.body;
+    //!start_at add krna hai
+    let { planId, customerId, totalCount = 12, startAt } = req.body;
 
     try {
         // If user is authenticated but customerId is not provided, try to find or create customer
@@ -453,6 +451,7 @@ export const createSubscription = async (req, res) => {
         let subscription = await razorpay.subscriptions.create({
             plan_id: planId,
             total_count: totalCount,
+            start_at: startAt,
             customer_id: customerId,
             quantity: 1,
             customer_notify: 1,
@@ -478,8 +477,7 @@ export const createSubscription = async (req, res) => {
                     customerId: customer._id,
                     planId: plan._id,
                     status: subscription.status, // Will be 'created' initially
-                    currentPeriodStart: new Date(subscription.current_start * 1000),
-                    currentPeriodEnd: new Date(subscription.current_end * 1000),
+                    startAt: startAt,
                     totalCount: subscription.total_count,
                     paidCount: subscription.paid_count,
                     notes: {
@@ -530,6 +528,7 @@ export const createSubscription = async (req, res) => {
             subscription: {
                 id: subscription.id,
                 status: subscription.status,
+                startAt: startAt,
                 current_start: subscription.current_start,
                 current_end: subscription.current_end,
                 plan_id: subscription.plan_id,
