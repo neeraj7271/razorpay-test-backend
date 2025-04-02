@@ -350,44 +350,41 @@ export const getPlans = async (req, res) => {
         const plans = await Plan.find({ isActive: true });
 
         // Group plans by type (Basic, Advance, Professional) and billing period (yearly, quarterly)
-        const groupedPlans = {};
+        // const groupedPlans = {};
 
-        plans.forEach(plan => {
-            // Determine the plan type from the name
-            let type = 'Basic';
-            if (plan.name.includes('Advance')) type = 'Advance';
-            if (plan.name.includes('Professional')) type = 'Professional';
+        // plans.forEach(plan => {
+        //     // Determine the plan type from the name
+        //     let type = 'Basic';
+        //     if (plan.name.includes('Advance')) type = 'Advance';
+        //     if (plan.name.includes('Professional')) type = 'Professional';
 
-            // Determine billing period
-            const period = plan.billingPeriod ||
-                (plan.name.includes('Quarterly') ? 'quarterly' : 'yearly');
+        //     // Determine billing period
+        //     const period = plan.billingPeriod ||
+        //         (plan.name.includes('Quarterly') ? 'quarterly' : 'yearly');
 
-            // Create type key if it doesn't exist
-            if (!groupedPlans[type]) {
-                groupedPlans[type] = { yearly: null, quarterly: null };
-            }
+        //     // Create type key if it doesn't exist
+        //     if (!groupedPlans[type]) {
+        //         groupedPlans[type] = { yearly: null, quarterly: null };
+        //     }
 
-            // Store the plan in the appropriate category
-            groupedPlans[type][period] = {
-                name: plan.name,
-                planId: plan.razorpayPlanId,
-                price: `₹${plan.amount}`,
-                features: plan.features,
-                description: plan.description,
-                currency: plan.currency,
-                interval: plan.interval,
-                interval_count: plan.intervalCount,
-                period: period
-            };
-        });
+        //     // Store the plan in the appropriate category
+        //     groupedPlans[type][period] = {
+        //         name: plan.name,
+        //         planId: plan.razorpayPlanId,
+        //         price: `₹${plan.amount}`,
+        //         features: plan.features,
+        //         description: plan.description,
+        //         currency: plan.currency,
+        //         interval: plan.interval,
+        //         interval_count: plan.intervalCount,
+        //         period: period
+        //     };
+        // });
 
         // Return plans to frontend
         res.json({
             success: true,
-            plans: Object.values(groupedPlans).flatMap(periodPlans =>
-                Object.values(periodPlans).filter(plan => plan !== null)
-            ),
-            groupedPlans: groupedPlans
+            plans: plans,
         });
     } catch (error) {
         console.error('Error fetching plans:', error);
