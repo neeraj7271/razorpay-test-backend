@@ -18,6 +18,7 @@ const razorpay = new Razorpay({
 export const createCustomer = async (req, res) => {
     console.log("createCustomer", req.body);
     try {
+        await connectDB();
         let { name, email, contact } = req.body;
         console.log("name, email, contact", name, email, contact);
         let userId = null;
