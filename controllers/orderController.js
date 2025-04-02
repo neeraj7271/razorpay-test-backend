@@ -1323,8 +1323,8 @@ const updateSubscriptionStatus = async (subscriptionId, status, subscriptionData
                         customerId: customer._id,
                         planId: plan._id,
                         status: status,
-                        currentPeriodStart: new Date(subscriptionData.current_start * 1000),
-                        currentPeriodEnd: new Date(subscriptionData.current_end * 1000),
+                        currentPeriodStart: new Date(subscriptionData.startAt * 1000),
+                        currentPeriodEnd: new Date(subscriptionData.subscriptionEndDate * 1000),
                         totalCount: subscriptionData.total_count,
                         paidCount: subscriptionData.paid_count,
                         notes: {

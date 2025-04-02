@@ -131,6 +131,10 @@ const SubscriptionSchema = new mongoose.Schema({
     remainingCount: {
         type: Number
     },
+    subscriptionEndDate: {
+        type: Date,
+        default: null
+    },
     billingPeriod: {
         type: String,
         enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
