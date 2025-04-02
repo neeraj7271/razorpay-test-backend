@@ -716,7 +716,7 @@ export const createSubscription = async (req, res) => {
             try {
                 const razorpayCustomer = await razorpay.customers.fetch(customerId);
 
-                customer = new Customer({
+                customer = await new Customer({
                     razorpayCustomerId: customerId,
                     name: razorpayCustomer.name,
                     email: razorpayCustomer.email,
