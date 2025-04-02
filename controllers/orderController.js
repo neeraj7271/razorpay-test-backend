@@ -332,6 +332,7 @@ export const getPlans = async (req, res) => {
                 const newPlan = new Plan({
                     razorpayPlanId: plan.id,
                     name: plan.item.name,
+                    period: plan.period,
                     description: plan.item.description,
                     amount: plan.item.amount / 100,
                     currency: plan.item.currency,

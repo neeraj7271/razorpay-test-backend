@@ -11,6 +11,10 @@ const PlanSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        period: {
+            type: String,
+            required: true,
+        },
         description: {
             type: String,
             default: '',
