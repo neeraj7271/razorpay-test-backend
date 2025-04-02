@@ -7,6 +7,7 @@ import Payment from '../models/Payment.js';
 import Subscription from '../models/Subscription.js';
 import Plan from '../models/Plan.js';
 import User from '../models/User.js';
+import connectDB from '../config/db.js';
 
 dotenv.config();
 const razorpay = new Razorpay({
@@ -536,11 +537,13 @@ export const createSubscription = async (req, res) => {
             }
         }
 
+        console.log("startAt", startAt);
         // Create subscription options
         const subscriptionOptions = {
             plan_id: planId,
             total_count: totalCount,
             customer_id: customerId,
+            start_at: startAt,
             quantity: 1,
             customer_notify: 1,
             notes: {
@@ -607,6 +610,7 @@ export const createSubscription = async (req, res) => {
 
         // Create subscription in Razorpay
         const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+        console.log("subscription", subscription);
 
         // Create subscription in our database
         const newSubscription = new Subscription({
@@ -844,6 +848,9 @@ export const handleWebhook = async (req, res) => {
 // Process webhook events asynchronously
 const processWebhookEventAsync = async (event) => {
     try {
+        // Ensure database connection before processing
+        await connectDB();
+
         // The event structure from Razorpay has the actual event type in event.event
         // and payload data in event.payload
         switch (event.event) {
@@ -934,6 +941,9 @@ const processWebhookEventAsync = async (event) => {
 // Helper functions for updating database based on webhook events
 const updatePaymentStatus = async (paymentId, status, paymentData) => {
     try {
+        // Ensure database connection
+        await connectDB();
+
         const payment = await Payment.findOne({ razorpayPaymentId: paymentId });
 
         if (payment) {
@@ -975,6 +985,9 @@ const updatePaymentStatus = async (paymentId, status, paymentData) => {
 
 const updateSubscriptionStatus = async (subscriptionId, status, subscriptionData) => {
     try {
+        // Ensure database connection
+        await connectDB();
+
         console.log(`Updating subscription ${subscriptionId} status to ${status}`);
         const subscription = await Subscription.findOne({ razorpaySubscriptionId: subscriptionId });
 
@@ -1080,6 +1093,9 @@ const updateSubscriptionCharged = async (subscriptionId, subscriptionData) => {
 
 const updateOrderPaid = async (orderId, orderData) => {
     try {
+        // Ensure database connection
+        await connectDB();
+
         // We don't have an Order model, but we can update related payment if exists
         const payment = await Payment.findOne({ razorpayOrderId: orderId });
         if (payment) {
