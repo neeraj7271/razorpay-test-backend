@@ -822,85 +822,86 @@ export const createSubscription = async (req, res) => {
             // First-time subscription starts immediately (the trial starts now)
             // We don't set start_at for first-time subscriptions to let it start immediately
             subscriptionStartAt = null; // Let Razorpay start it immediately
-            console.log("NEW SUBSCRIBER: Starting subscription immediately with free trial");
-        }
+            console.log("NEW SUBSCRIBER: creating the subscription");
 
-        // Create subscription options
-        const subscriptionOptions = {
-            plan_id: planId,
-            total_count: totalCount,
-            customer_id: customerId,
-            quantity: 1,
-            customer_notify: 1,
-            notes: {
-                created_at: new Date().toISOString(),
-                created_by: customerId,
-                userId: req.user ? req.user.id : null,
+
+            // Create subscription options
+            const subscriptionOptions = {
+                plan_id: planId,
+                total_count: totalCount,
+                customer_id: customerId,
+                quantity: 1,
+                customer_notify: 1,
+                notes: {
+                    created_at: new Date().toISOString(),
+                    created_by: customerId,
+                    userId: req.user ? req.user.id : null,
+                    billingPeriod: billingPeriod || plan.billingPeriod,
+                    isRenewal: isRenewal,
+                    isFreeTrialEnabled: isFreeTrialEnabled
+                }
+            };
+
+            // Only set start_at for renewals, not for first-time subscriptions
+            if (isRenewal && subscriptionStartAt) {
+                subscriptionOptions.start_at = subscriptionStartAt;
+                subscriptionOptions.notes.scheduledStart = new Date(subscriptionStartAt * 1000).toISOString();
+            }
+
+
+            // Add expire_by if needed (for auto-cancellation if not authorized)
+            if (isRenewal && subscriptionStartAt) {
+                // Set expiry to 7 days from now or 1 day before start_at, whichever is earlier
+                const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+                const oneDayBeforeStart = subscriptionOptions.start_at - 24 * 60 * 60;
+                subscriptionOptions.expire_by = oneDayBeforeStart;
+            } else {
+                // For immediate subscriptions, set to expire after 7 days if not authenticated
+                subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+            }
+
+            console.log("Subscription options being sent to Razorpay:", JSON.stringify(subscriptionOptions, null, 2));
+
+            // Verify the plan exists in Razorpay before trying to create subscription
+            try {
+                const planCheck = await razorpay.plans.fetch(planId);
+                console.log("Plan exists in Razorpay:", planCheck.id);
+            } catch (error) {
+                console.error("Plan doesn't exist in Razorpay:", error.error.description);
+                return res.status(404).json({
+                    success: false,
+                    message: "The plan ID doesn't exist in Razorpay",
+                    error: error.error
+                });
+            }
+
+            // Create subscription in Razorpay
+            const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+            console.log("subscription", subscription);
+
+            // Create subscription in our database
+            const newSubscription = new Subscription({
+                razorpaySubscriptionId: subscription.id,
+                customerId: customer._id,
+                planId: plan._id,
+                status: subscription.status,
+                startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : new Date(),
+                chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : null,
+                totalCount: subscription.total_count,
+                paidCount: subscription.paid_count,
                 billingPeriod: billingPeriod || plan.billingPeriod,
-                isRenewal: isRenewal,
-                isFreeTrialEnabled: isFreeTrialEnabled
-            }
-        };
-
-        // Only set start_at for renewals, not for first-time subscriptions
-        if (isRenewal && subscriptionStartAt) {
-            subscriptionOptions.start_at = subscriptionStartAt;
-            subscriptionOptions.notes.scheduledStart = new Date(subscriptionStartAt * 1000).toISOString();
-        }
-
-
-        // Add expire_by if needed (for auto-cancellation if not authorized)
-        if (isRenewal && subscriptionStartAt) {
-            // Set expiry to 7 days from now or 1 day before start_at, whichever is earlier
-            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-            const oneDayBeforeStart = subscriptionOptions.start_at - 24 * 60 * 60;
-            subscriptionOptions.expire_by = oneDayBeforeStart;
-        } else {
-            // For immediate subscriptions, set to expire after 7 days if not authenticated
-            subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-        }
-
-        console.log("Subscription options being sent to Razorpay:", JSON.stringify(subscriptionOptions, null, 2));
-
-        // Verify the plan exists in Razorpay before trying to create subscription
-        try {
-            const planCheck = await razorpay.plans.fetch(planId);
-            console.log("Plan exists in Razorpay:", planCheck.id);
-        } catch (error) {
-            console.error("Plan doesn't exist in Razorpay:", error.error.description);
-            return res.status(404).json({
-                success: false,
-                message: "The plan ID doesn't exist in Razorpay",
-                error: error.error
+                notes: {
+                    ...subscription.notes,
+                    pendingActivation: true,
+                    isScheduled: isRenewal,
+                    isRenewal: isRenewal,
+                    isFreeTrialEnabled: isFreeTrialEnabled,
+                    trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
+                }
             });
+
+            await newSubscription.save();
         }
-
-        // Create subscription in Razorpay
-        const subscription = await razorpay.subscriptions.create(subscriptionOptions);
-        console.log("subscription", subscription);
-
-        // Create subscription in our database
-        const newSubscription = new Subscription({
-            razorpaySubscriptionId: subscription.id,
-            customerId: customer._id,
-            planId: plan._id,
-            status: subscription.status,
-            startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : new Date(),
-            chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : null,
-            totalCount: subscription.total_count,
-            paidCount: subscription.paid_count,
-            billingPeriod: billingPeriod || plan.billingPeriod,
-            notes: {
-                ...subscription.notes,
-                pendingActivation: true,
-                isScheduled: isRenewal,
-                isRenewal: isRenewal,
-                isFreeTrialEnabled: isFreeTrialEnabled,
-                trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
-            }
-        });
-
-        await newSubscription.save();
 
         // Return subscription details
         res.status(200).json({
