@@ -777,6 +777,15 @@ export const createSubscription = async (req, res) => {
             }
         }
 
+        let subscriptionEndDate = null;
+        if (plan.interval === "monthly") {
+            subscriptionEndDate = new Date();
+            subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + plan.intervalCount);
+        } else if (plan.interval === "yearly") {
+            subscriptionEndDate = new Date();
+            subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + plan.intervalCount);
+        }
+
         // Set totalCount based on billing period if not specified
         if (!req.body.totalCount) {
             const planBillingPeriod = billingPeriod || plan.billingPeriod;
@@ -810,7 +819,7 @@ export const createSubscription = async (req, res) => {
             isRenewal = true;
 
             // Set startAt to the next day after current subscription ends
-            const currentEndDate = new Date(activeSubscription.chargeAt);
+            const currentEndDate = new Date(activeSubscription.subscriptionEndDate);
             currentEndDate.setDate(currentEndDate.getDate() + 1); // Next day
             currentEndDate.setHours(0, 0, 0, 0); // Start of the day
             subscriptionStartAt = Math.floor(currentEndDate.getTime() / 1000);
@@ -821,7 +830,7 @@ export const createSubscription = async (req, res) => {
 
             // First-time subscription starts immediately (the trial starts now)
             // We don't set start_at for first-time subscriptions to let it start immediately
-            subscriptionStartAt = null; // Let Razorpay start it immediately
+            subscriptionStartAt = Math.floor(Date.now() / 1000); // Let Razorpay start it immediately
             console.log("NEW SUBSCRIBER: creating the subscription");
 
 
@@ -854,7 +863,7 @@ export const createSubscription = async (req, res) => {
                 // Set expiry to 7 days from now or 1 day before start_at, whichever is earlier
                 const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
                 const oneDayBeforeStart = subscriptionOptions.start_at - 24 * 60 * 60;
-                subscriptionOptions.expire_by = oneDayBeforeStart;
+                subscriptionOptions.expire_by = Math.min(oneDayBeforeStart, sevenDaysFromNow);
             } else {
                 // For immediate subscriptions, set to expire after 7 days if not authenticated
                 subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
@@ -884,9 +893,10 @@ export const createSubscription = async (req, res) => {
                 razorpaySubscriptionId: subscription.id,
                 customerId: customer._id,
                 planId: plan._id,
+                subscriptionEndDate: subscriptionEndDate,
                 status: subscription.status,
                 startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : new Date(),
-                chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : null,
+                chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : new Date(),
                 totalCount: subscription.total_count,
                 paidCount: subscription.paid_count,
                 billingPeriod: billingPeriod || plan.billingPeriod,
@@ -1272,8 +1282,8 @@ const updateSubscriptionStatus = async (subscriptionId, status, subscriptionData
 
             // Update subscription data
             subscription.status = status;
-            subscription.currentPeriodStart = new Date(subscriptionData.current_start * 1000);
-            subscription.currentPeriodEnd = new Date(subscriptionData.current_end * 1000);
+            subscription.currentPeriodStart = new Date(subscriptionData.startAt * 1000);
+            subscription.currentPeriodEnd = new Date(subscriptionData.subscriptionEndDate * 1000);
             subscription.paidCount = subscriptionData.paid_count;
 
 

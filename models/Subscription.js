@@ -116,6 +116,14 @@ const SubscriptionSchema = new mongoose.Schema({
         type: Number,
         default: 12
     },
+    currentPeriodStart: {
+        type: Date,
+        default: null
+    },
+    currentPeriodEnd: {
+        type: Date,
+        default: null
+    },
     paidCount: {
         type: Number,
         default: 0
