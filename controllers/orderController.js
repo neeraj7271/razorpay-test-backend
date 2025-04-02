@@ -241,7 +241,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Basic',
                 planId: 'plan_QE3mD6WJXoxFuK',
-                period: 'yearly',
+                type: 'yearly',
                 features: [
                     'Up to 5 users',
                     'Up to 5 companies',
@@ -252,7 +252,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Advance',
                 planId: 'plan_QE3klPxzXy1pp3',
-                period: 'yearly',
+                type: 'yearly',
                 features: [
                     'Up to 15 users',
                     'Up to 15 companies',
@@ -263,7 +263,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Professional',
                 planId: 'plan_QE3l9wpI55W24z',
-                period: 'yearly',
+                type: 'yearly',
                 features: [
                     'Unlimited users',
                     'Unlimited companies',
@@ -275,7 +275,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Basic',
                 planId: 'plan_QE3mD6WJXoxFuK', // Replace with your actual quarterly plan ID
-                period: 'quarterly',
+                type: 'quarterly',
                 features: [
                     'Up to 5 users',
                     'Up to 5 companies',
@@ -286,7 +286,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Advance',
                 planId: 'plan_QE3klPxzXy1pp3', // Replace with your actual quarterly plan ID
-                period: 'quarterly',
+                type: 'quarterly',
                 features: [
                     'Up to 15 users',
                     'Up to 15 companies',
@@ -297,7 +297,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Professional',
                 planId: 'plan_QE3l9wpI55W24z', // Replace with your actual quarterly plan ID
-                period: 'quarterly',
+                type: 'quarterly',
                 features: [
                     'Unlimited users',
                     'Unlimited companies',
@@ -332,7 +332,7 @@ export const getPlans = async (req, res) => {
                 const newPlan = new Plan({
                     razorpayPlanId: plan.id,
                     name: plan.item.name,
-                    period: period,
+                    period: plan.type,
                     description: plan.item.description,
                     amount: plan.item.amount / 100,
                     currency: plan.item.currency,
