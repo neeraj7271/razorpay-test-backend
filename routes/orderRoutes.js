@@ -14,10 +14,11 @@ router.post('/create-customer', protect, createCustomer);
 router.post('/create-order', protect, createOrder);
 router.post('/verify-payment', protect, verifyPayment);
 router.post('/create-subscription', protect, createSubscription);
-router.post('/add-addon', protect, addAddonToSubscription);
+// router.post('/add-addon', protect, addAddonToSubscription);
+//!renew subscription
 
 // New protected routes
-router.get('/validate-discount/:subscriptionId', protect, validateDiscount);
+// router.get('/validate-discount/:subscriptionId', protect, validateDiscount);
 router.get('/customers', protect, getCustomers);
 router.get('/subscriptions', protect, getUserSubscriptions);
 router.get('/subscriptions/:subscriptionId', protect, getSubscriptionDetails);

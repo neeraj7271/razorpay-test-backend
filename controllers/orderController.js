@@ -235,11 +235,13 @@ export const verifyPayment = async (req, res) => {
 
 export const getPlans = async (req, res) => {
     try {
-        // Predefined plans data
+        // Predefined plans data with both yearly and quarterly options
         const predefinedPlans = [
+            // Yearly plans
             {
                 name: 'Basic',
                 planId: 'plan_QE3mD6WJXoxFuK',
+                period: 'yearly',
                 features: [
                     'Up to 5 users',
                     'Up to 5 companies',
@@ -250,6 +252,7 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Advance',
                 planId: 'plan_QE3klPxzXy1pp3',
+                period: 'yearly',
                 features: [
                     'Up to 15 users',
                     'Up to 15 companies',
@@ -260,6 +263,41 @@ export const getPlans = async (req, res) => {
             {
                 name: 'Professional',
                 planId: 'plan_QE3l9wpI55W24z',
+                period: 'yearly',
+                features: [
+                    'Unlimited users',
+                    'Unlimited companies',
+                    'Mandatory Tally License',
+                    'Executive support'
+                ]
+            },
+            // Quarterly plans
+            {
+                name: 'Basic',
+                planId: 'plan_QE3mD6WJXoxFuK', // Replace with your actual quarterly plan ID
+                period: 'quarterly',
+                features: [
+                    'Up to 5 users',
+                    'Up to 5 companies',
+                    'Single user Tally on Cloud',
+                    'Email support'
+                ]
+            },
+            {
+                name: 'Advance',
+                planId: 'plan_QE3klPxzXy1pp3', // Replace with your actual quarterly plan ID
+                period: 'quarterly',
+                features: [
+                    'Up to 15 users',
+                    'Up to 15 companies',
+                    'Single user Tally on Cloud',
+                    'Call support'
+                ]
+            },
+            {
+                name: 'Professional',
+                planId: 'plan_QE3l9wpI55W24z', // Replace with your actual quarterly plan ID
+                period: 'quarterly',
                 features: [
                     'Unlimited users',
                     'Unlimited companies',
@@ -285,7 +323,10 @@ export const getPlans = async (req, res) => {
             const existingPlan = await Plan.findOne({ razorpayPlanId: plan.id });
 
             if (!existingPlan) {
-                const features = predefinedPlans.find(p => p.planId === plan.id)?.features || [];
+                // Find matching predefined plan
+                const predefinedPlan = predefinedPlans.find(p => p.planId === plan.id);
+                const features = predefinedPlan?.features || [];
+                const period = predefinedPlan?.period || 'yearly'; // Default to yearly if not specified
 
                 // Create new plan in MongoDB
                 const newPlan = new Plan({
@@ -294,9 +335,10 @@ export const getPlans = async (req, res) => {
                     description: plan.item.description,
                     amount: plan.item.amount / 100,
                     currency: plan.item.currency,
-                    interval: plan.item.interval,
-                    intervalCount: plan.item.interval_count,
+                    interval: plan.period,
+                    intervalCount: plan.interval,
                     features: features,
+                    billingPeriod: period,
                 });
 
                 await newPlan.save();
@@ -306,10 +348,26 @@ export const getPlans = async (req, res) => {
         // Fetch all plans from MongoDB
         const plans = await Plan.find({ isActive: true });
 
-        // Return plans to frontend
-        res.json({
-            success: true,
-            plans: plans.map(plan => ({
+        // Group plans by type (Basic, Advance, Professional) and billing period (yearly, quarterly)
+        const groupedPlans = {};
+
+        plans.forEach(plan => {
+            // Determine the plan type from the name
+            let type = 'Basic';
+            if (plan.name.includes('Advance')) type = 'Advance';
+            if (plan.name.includes('Professional')) type = 'Professional';
+
+            // Determine billing period
+            const period = plan.billingPeriod ||
+                (plan.name.includes('Quarterly') ? 'quarterly' : 'yearly');
+
+            // Create type key if it doesn't exist
+            if (!groupedPlans[type]) {
+                groupedPlans[type] = { yearly: null, quarterly: null };
+            }
+
+            // Store the plan in the appropriate category
+            groupedPlans[type][period] = {
                 name: plan.name,
                 planId: plan.razorpayPlanId,
                 price: `₹${plan.amount}`,
@@ -317,8 +375,18 @@ export const getPlans = async (req, res) => {
                 description: plan.description,
                 currency: plan.currency,
                 interval: plan.interval,
-                interval_count: plan.intervalCount
-            }))
+                interval_count: plan.intervalCount,
+                period: period
+            };
+        });
+
+        // Return plans to frontend
+        res.json({
+            success: true,
+            plans: Object.values(groupedPlans).flatMap(periodPlans =>
+                Object.values(periodPlans).filter(plan => plan !== null)
+            ),
+            groupedPlans: groupedPlans
         });
     } catch (error) {
         console.error('Error fetching plans:', error);
@@ -339,7 +407,7 @@ export const getPlans = async (req, res) => {
 };
 
 export const createSubscription = async (req, res) => {
-    let { planId, customerId, totalCount = 12, startAt } = req.body;
+    let { planId, customerId, totalCount = 12, startAt, billingPeriod } = req.body;
 
     try {
         // If user is authenticated but customerId is not provided, try to find or create customer
@@ -423,6 +491,11 @@ export const createSubscription = async (req, res) => {
             try {
                 const razorpayPlan = await razorpay.plans.fetch(planId);
 
+                // Determine billing period from plan or request
+                const planBillingPeriod = billingPeriod ||
+                    (razorpayPlan.period === 'month' && razorpayPlan.interval === 3 ? 'quarterly' :
+                        razorpayPlan.period === 'year' ? 'yearly' : 'monthly');
+
                 plan = new Plan({
                     razorpayPlanId: planId,
                     name: razorpayPlan.item.name,
@@ -431,6 +504,7 @@ export const createSubscription = async (req, res) => {
                     currency: razorpayPlan.item.currency,
                     interval: razorpayPlan.period,
                     intervalCount: razorpayPlan.interval,
+                    billingPeriod: planBillingPeriod
                 });
 
                 await plan.save();
@@ -444,6 +518,18 @@ export const createSubscription = async (req, res) => {
             }
         }
 
+        // Set totalCount based on billing period if not specified
+        if (!req.body.totalCount) {
+            const planBillingPeriod = billingPeriod || plan.billingPeriod;
+            if (planBillingPeriod === 'yearly') {
+                totalCount = 1; // One payment for annual
+            } else if (planBillingPeriod === 'quarterly') {
+                totalCount = 4; // Four quarterly payments
+            } else if (planBillingPeriod === 'monthly') {
+                totalCount = 12; // Twelve monthly payments
+            }
+        }
+
         // Create subscription options
         const subscriptionOptions = {
             plan_id: planId,
@@ -454,7 +540,8 @@ export const createSubscription = async (req, res) => {
             notes: {
                 created_at: new Date().toISOString(),
                 created_by: customerId,
-                userId: req.user ? req.user.id : null
+                userId: req.user ? req.user.id : null,
+                billingPeriod: billingPeriod || plan.billingPeriod
             }
         };
 
@@ -475,6 +562,7 @@ export const createSubscription = async (req, res) => {
             startAt: startAt ? new Date(startAt * 1000) : null,
             totalCount: subscription.total_count,
             paidCount: subscription.paid_count,
+            billingPeriod: billingPeriod || plan.billingPeriod,
             notes: {
                 ...subscription.notes,
                 pendingActivation: true
@@ -496,7 +584,8 @@ export const createSubscription = async (req, res) => {
                 total_count: subscription.total_count,
                 paid_count: subscription.paid_count,
                 customer_notify: subscription.customer_notify,
-                short_url: subscription.short_url
+                short_url: subscription.short_url,
+                billingPeriod: billingPeriod || plan.billingPeriod
             },
             customer: {
                 id: customer._id,
@@ -510,7 +599,8 @@ export const createSubscription = async (req, res) => {
                 name: plan.name,
                 amount: plan.amount,
                 currency: plan.currency,
-                interval: plan.interval
+                interval: plan.interval,
+                billingPeriod: plan.billingPeriod
             }
         });
 

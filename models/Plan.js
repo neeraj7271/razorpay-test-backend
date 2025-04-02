@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const planSchema = new mongoose.Schema(
+const PlanSchema = new mongoose.Schema(
     {
         razorpayPlanId: {
             type: String,
@@ -13,6 +13,7 @@ const planSchema = new mongoose.Schema(
         },
         description: {
             type: String,
+            default: '',
         },
         amount: {
             type: Number,
@@ -25,13 +26,21 @@ const planSchema = new mongoose.Schema(
         interval: {
             type: String,
             enum: ['daily', 'weekly', 'monthly', 'yearly'],
-            default: 'yearly',
+            default: 'monthly',
         },
         intervalCount: {
             type: Number,
             default: 1,
         },
-        features: [String],
+        billingPeriod: {
+            type: String,
+            enum: ['yearly', 'quarterly', 'monthly'],
+            default: 'yearly',
+        },
+        features: {
+            type: [String],
+            default: [],
+        },
         isActive: {
             type: Boolean,
             default: true,
@@ -42,6 +51,6 @@ const planSchema = new mongoose.Schema(
     }
 );
 
-const Plan = mongoose.model('Plan', planSchema);
+const Plan = mongoose.model('Plan', PlanSchema);
 
 export default Plan; 
