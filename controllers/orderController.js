@@ -974,7 +974,7 @@ export const getPlans = async (req, res) => {
 //     }
 // };
 
-export const createSubscription1 = async (req, res) => {
+export const createSubscription = async (req, res) => {
     console.log("createSubscription", req.body);
     let { planId, customerId, totalCount = 12, billingPeriod } = req.body;
 
@@ -1195,7 +1195,7 @@ export const createSubscription1 = async (req, res) => {
     }
 };
 
-export const createSubscription = async (req, res) => {
+export const createSubscription1 = async (req, res) => {
     try {
         const { planType, totalCount, customerId, planId } = req.body;
 
@@ -1235,6 +1235,8 @@ export const createSubscription = async (req, res) => {
         const newSubscription = await Subscription.create({
             // userId: userId,
             razorpaySubscriptionId: razorpaySub.id,
+            billingPeriod: razorpaySub.billingPeriod,
+            planId: razorpay.razorpayPlanId,
             planType: planType,
             subscriptionStartDate: startDate,
             subscriptionEndDate: endDate,
