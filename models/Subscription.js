@@ -100,8 +100,11 @@ const SubscriptionSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['created', 'authenticated', 'active', 'pending', 'halted', 'cancelled', 'completed', 'expired'],
+        enum: ['created', 'active', 'completed', 'halted', 'cancelled'],
         default: 'created'
+    },
+    subscriptionEndDate: {
+        type: Date
     },
     startAt: {
         type: Date
@@ -109,93 +112,24 @@ const SubscriptionSchema = new mongoose.Schema({
     chargeAt: {
         type: Date
     },
-    endAt: {
-        type: Date
-    },
     totalCount: {
         type: Number,
         default: 12
-    },
-    currentPeriodStart: {
-        type: Date,
-        default: null
-    },
-    currentPeriodEnd: {
-        type: Date,
-        default: null
     },
     paidCount: {
         type: Number,
         default: 0
     },
-    remainingCount: {
-        type: Number
-    },
-    subscriptionEndDate: {
-        type: Date,
-        default: null
-    },
     billingPeriod: {
         type: String,
-        enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
+        enum: ['monthly', 'quarterly', 'yearly'],
         default: 'monthly'
     },
     notes: {
-        pendingActivation: {
-            type: Boolean,
-            default: true
-        },
-        isScheduled: {
-            type: Boolean,
-            default: false
-        },
-        isRenewal: {
-            type: Boolean,
-            default: false
-        },
-        isFreeTrialEnabled: {
-            type: Boolean,
-            default: false
-        },
-        trialEndDate: {
-            type: Date
-        },
-        scheduledStart: {
-            type: Date
-        },
-        created_at: {
-            type: String
-        },
-        created_by: {
-            type: String
-        },
-        userId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        }
-    },
-    payments: [{
-        razorpayPaymentId: {
-            type: String
-        },
-        amount: {
-            type: Number
-        },
-        status: {
-            type: String
-        },
-        date: {
-            type: Date
-        }
-    }],
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
+        type: Object,
+        default: {}
     }
+
 }, {
     timestamps: true
 });

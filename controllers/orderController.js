@@ -688,47 +688,319 @@ export const getPlans = async (req, res) => {
 //     }
 // };
 
+// export const createSubscription = async (req, res) => {
+//     console.log("createSubscription", req.body);
+//     let { planId, customerId, totalCount = 12, billingPeriod } = req.body;
+
+//     try {
+//         await connectDB();
+//         // Validate required fields
+//         if (!customerId) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: 'Customer ID is required'
+//             });
+//         }
+
+//         if (!planId) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: 'Plan ID is required'
+//             });
+//         }
+
+//         // Find customer in MongoDB
+//         let customer = await Customer.findOne({ razorpayCustomerId: customerId });
+//         console.log("printing the customer recieved from the body", customer);
+
+//         if (!customer) {
+//             // If customerId exists but not in our DB, try to find from Razorpay and create in DB
+//             try {
+//                 const razorpayCustomer = await razorpay.customers.fetch(customerId);
+
+//                 customer = await new Customer({
+//                     razorpayCustomerId: customerId,
+//                     name: razorpayCustomer.name,
+//                     email: razorpayCustomer.email,
+//                     contact: razorpayCustomer.contact,
+//                     userId: req.user ? req.user.id : null
+//                 });
+
+//                 await customer.save();
+//             } catch (error) {
+//                 console.error('Error fetching customer from Razorpay:', error);
+//                 return res.status(404).json({
+//                     success: false,
+//                     message: 'Customer not found',
+//                     error: error.message
+//                 });
+//             }
+//         }
+
+//         // Fetch plan details
+//         console.log("planId fetching the plan", planId);
+//         let plan = await Plan.findOne({ razorpayPlanId: planId });
+//         console.log("plan", plan);
+
+//         if (!plan) {
+//             // Fetch plan details from Razorpay
+//             //?this will alway be there in the razorpay
+//             try {
+//                 const razorpayPlan = await razorpay.plans.fetch(planId);
+
+//                 console.log("creating the new razorpayPlan", razorpayPlan);
+
+//                 // Determine billing period from plan or request
+//                 const planBillingPeriod = billingPeriod ||
+//                     (razorpayPlan.period === 'month' && razorpayPlan.interval === 3 ? 'quarterly' :
+//                         razorpayPlan.period === 'year' ? 'yearly' : 'monthly');
+
+//                 plan = new Plan({
+//                     razorpayPlanId: planId,
+//                     name: razorpayPlan.item.name,
+//                     description: razorpayPlan.item.description,
+//                     amount: razorpayPlan.item.amount / 100,
+//                     currency: razorpayPlan.item.currency,
+//                     interval: razorpayPlan.period,
+//                     intervalCount: razorpayPlan.interval,
+//                     billingPeriod: planBillingPeriod
+//                 });
+
+//                 await plan.save();
+//             } catch (error) {
+//                 console.error('Error fetching plan from Razorpay:', error);
+//                 return res.status(404).json({
+//                     success: false,
+//                     message: 'Plan not found',
+//                     error: error.message
+//                 });
+//             }
+//         }
+
+//         let subscriptionEndDate = null;
+//         if (plan.interval === "monthly") {
+//             subscriptionEndDate = new Date();
+//             subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + plan.intervalCount);
+//         } else if (plan.interval === "yearly") {
+//             subscriptionEndDate = new Date();
+//             subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + plan.intervalCount);
+//         }
+
+//         // Set totalCount based on billing period if not specified
+//         if (!req.body.totalCount) {
+//             const planBillingPeriod = billingPeriod || plan.billingPeriod;
+//             if (planBillingPeriod === 'yearly') {
+//                 totalCount = 1; // One payment for annual
+//             } else if (planBillingPeriod === 'quarterly') {
+//                 totalCount = 4; // Four quarterly payments
+//             } else if (planBillingPeriod === 'monthly') {
+//                 totalCount = 12; // Twelve monthly payments
+//             }
+//         }
+
+//         // UPDATED LOGIC: Check if the customer already has an active subscription for this plan
+//         let subscriptionStartAt = null; // Will be determined based on logic below
+//         let isRenewal = false;
+//         let isFreeTrialEnabled = false;
+
+//         console.log("plan.amount", plan.amount);
+
+//         // Find active subscriptions for this customer and plan
+//         const activeSubscription = await Subscription.findOne({
+//             customerId: customer._id,
+//             planId: plan._id,
+//             status: { $in: ['active'] }
+//         }).sort({ chargeAt: -1 }); // Get the most recent one
+
+//         console.log('printing the activeSubscriptions', activeSubscription);
+
+//         if (activeSubscription) {
+//             // Customer already has an active subscription - this is a renewal
+//             isRenewal = true;
+
+//             // Set startAt to the next day after current subscription ends
+//             const currentEndDate = new Date(activeSubscription.subscriptionEndDate);
+//             currentEndDate.setDate(currentEndDate.getDate() + 1); // Next day
+//             currentEndDate.setHours(0, 0, 0, 0); // Start of the day
+//             subscriptionStartAt = Math.floor(currentEndDate.getTime() / 1000);
+//             console.log("RENEWAL: Customer has an active subscription. Next subscription will start at:", new Date(subscriptionStartAt * 1000));
+//         } else {
+//             // First-time subscription - starts immediately, with 7-day free trial
+//             //isFreeTrialEnabled = true;
+
+//             // First-time subscription starts immediately (the trial starts now)
+//             // We don't set start_at for first-time subscriptions to let it start immediately
+//             subscriptionStartAt = Math.floor(Date.now() / 1000); // Let Razorpay start it immediately
+//             console.log("NEW SUBSCRIBER: creating the subscription");
+
+
+//             // Create subscription options
+//             const subscriptionOptions = {
+//                 plan_id: planId,
+//                 total_count: totalCount,
+//                 customer_id: customerId,
+//                 quantity: 1,
+//                 customer_notify: 1,
+//                 notes: {
+//                     created_at: new Date().toISOString(),
+//                     created_by: customerId,
+//                     userId: req.user ? req.user.id : null,
+//                     billingPeriod: billingPeriod || plan.billingPeriod,
+//                     isRenewal: isRenewal,
+//                     isFreeTrialEnabled: isFreeTrialEnabled
+//                 }
+//             };
+
+//             // Only set start_at for renewals, not for first-time subscriptions
+//             if (isRenewal && subscriptionStartAt) {
+//                 subscriptionOptions.start_at = subscriptionStartAt;
+//                 subscriptionOptions.notes.scheduledStart = new Date(subscriptionStartAt * 1000).toISOString();
+//             }
+
+
+//             // Add expire_by if needed (for auto-cancellation if not authorized)
+//             if (isRenewal && subscriptionStartAt) {
+//                 // Set expiry to 7 days from now or 1 day before start_at, whichever is earlier
+//                 const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+//                 const oneDayBeforeStart = subscriptionOptions.start_at - 24 * 60 * 60;
+//                 subscriptionOptions.expire_by = Math.min(oneDayBeforeStart, sevenDaysFromNow);
+//             } else {
+//                 // For immediate subscriptions, set to expire after 7 days if not authenticated
+//                 subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+//             }
+
+//             console.log("Subscription options being sent to Razorpay:", JSON.stringify(subscriptionOptions, null, 2));
+
+//             // Verify the plan exists in Razorpay before trying to create subscription
+//             try {
+//                 const planCheck = await razorpay.plans.fetch(planId);
+//                 console.log("Plan exists in Razorpay:", planCheck.id);
+//             } catch (error) {
+//                 console.error("Plan doesn't exist in Razorpay:", error.error.description);
+//                 return res.status(404).json({
+//                     success: false,
+//                     message: "The plan ID doesn't exist in Razorpay",
+//                     error: error.error
+//                 });
+//             }
+
+//             // Create subscription in Razorpay
+//             const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+//             console.log("subscription", subscription);
+
+//             // Create subscription in our database
+//             const newSubscription = new Subscription({
+//                 razorpaySubscriptionId: subscription.id,
+//                 customerId: customer._id,
+//                 planId: plan._id,
+//                 subscriptionEndDate: subscriptionEndDate,
+//                 status: subscription.status,
+//                 startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : new Date(),
+//                 chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : new Date(),
+//                 totalCount: subscription.total_count,
+//                 paidCount: subscription.paid_count,
+//                 billingPeriod: billingPeriod || plan.billingPeriod,
+//                 notes: {
+//                     ...subscription.notes,
+//                     pendingActivation: true,
+//                     isScheduled: isRenewal,
+//                     isRenewal: isRenewal,
+//                     isFreeTrialEnabled: isFreeTrialEnabled,
+//                     trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
+//                 }
+//             });
+
+//             await newSubscription.save();
+
+
+//             // Return subscription details
+//             res.status(200).json({
+//                 success: true,
+//                 subscription: {
+//                     id: subscription.id,
+//                     status: subscription.status,
+//                     startAt: subscription.start_at,
+//                     chargeAt: subscription.charge_at,
+//                     current_start: subscription.current_start,
+//                     current_end: subscription.current_end,
+//                     plan_id: subscription.plan_id,
+//                     total_count: subscription.total_count,
+//                     paid_count: subscription.paid_count,
+//                     customer_notify: subscription.customer_notify,
+//                     short_url: subscription.short_url,
+//                     billingPeriod: billingPeriod || plan.billingPeriod,
+//                     isRenewal: isRenewal,
+//                     isFreeTrialEnabled: isFreeTrialEnabled,
+//                     trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
+//                 },
+//                 customer: {
+//                     id: customer._id,
+//                     razorpayCustomerId: customer.razorpayCustomerId,
+//                     name: customer.name,
+//                     email: customer.email
+//                 },
+//                 plan: {
+//                     id: plan._id,
+//                     razorpayPlanId: plan.razorpayPlanId,
+//                     name: plan.name,
+//                     amount: plan.amount,
+//                     currency: plan.currency,
+//                     interval: plan.interval,
+//                     billingPeriod: plan.billingPeriod
+//                 }
+//             });
+//         }
+
+//     } catch (error) {
+//         console.error('Error creating subscription:', error);
+
+//         // Handle specific Razorpay errors
+//         if (error.error) {
+//             return res.status(error.statusCode || 400).json({
+//                 success: false,
+//                 message: error.error.description || 'Failed to create subscription',
+//                 error: error.error
+//             });
+//         }
+
+//         res.status(500).json({
+//             success: false,
+//             message: 'Failed to create subscription',
+//             error: error.message
+//         });
+//     }
+// };
+
 export const createSubscription = async (req, res) => {
     console.log("createSubscription", req.body);
     let { planId, customerId, totalCount = 12, billingPeriod } = req.body;
 
     try {
         await connectDB();
-        // Validate required fields
+
         if (!customerId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Customer ID is required'
-            });
+            return res.status(400).json({ success: false, message: 'Customer ID is required' });
         }
 
         if (!planId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Plan ID is required'
-            });
+            return res.status(400).json({ success: false, message: 'Plan ID is required' });
         }
 
-        // Find customer in MongoDB
+        // 1. Find or create customer in DB
         let customer = await Customer.findOne({ razorpayCustomerId: customerId });
-        console.log("printing the customer recieved from the body", customer);
 
         if (!customer) {
-            // If customerId exists but not in our DB, try to find from Razorpay and create in DB
             try {
                 const razorpayCustomer = await razorpay.customers.fetch(customerId);
-
-                customer = await new Customer({
+                customer = new Customer({
                     razorpayCustomerId: customerId,
                     name: razorpayCustomer.name,
                     email: razorpayCustomer.email,
                     contact: razorpayCustomer.contact,
                     userId: req.user ? req.user.id : null
                 });
-
                 await customer.save();
             } catch (error) {
-                console.error('Error fetching customer from Razorpay:', error);
                 return res.status(404).json({
                     success: false,
                     message: 'Customer not found',
@@ -737,20 +1009,12 @@ export const createSubscription = async (req, res) => {
             }
         }
 
-        // Fetch plan details
-        console.log("planId fetching the plan", planId);
+        // 2. Find or create plan in DB
         let plan = await Plan.findOne({ razorpayPlanId: planId });
-        console.log("plan", plan);
 
         if (!plan) {
-            // Fetch plan details from Razorpay
-            //?this will alway be there in the razorpay
             try {
                 const razorpayPlan = await razorpay.plans.fetch(planId);
-
-                console.log("creating the new razorpayPlan", razorpayPlan);
-
-                // Determine billing period from plan or request
                 const planBillingPeriod = billingPeriod ||
                     (razorpayPlan.period === 'month' && razorpayPlan.interval === 3 ? 'quarterly' :
                         razorpayPlan.period === 'year' ? 'yearly' : 'monthly');
@@ -765,10 +1029,8 @@ export const createSubscription = async (req, res) => {
                     intervalCount: razorpayPlan.interval,
                     billingPeriod: planBillingPeriod
                 });
-
                 await plan.save();
             } catch (error) {
-                console.error('Error fetching plan from Razorpay:', error);
                 return res.status(404).json({
                     success: false,
                     message: 'Plan not found',
@@ -777,184 +1039,143 @@ export const createSubscription = async (req, res) => {
             }
         }
 
-        let subscriptionEndDate = null;
-        if (plan.interval === "monthly") {
-            subscriptionEndDate = new Date();
-            subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + plan.intervalCount);
-        } else if (plan.interval === "yearly") {
-            subscriptionEndDate = new Date();
-            subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + plan.intervalCount);
-        }
-
-        // Set totalCount based on billing period if not specified
+        // 3. Determine totalCount based on billing period if not set
         if (!req.body.totalCount) {
             const planBillingPeriod = billingPeriod || plan.billingPeriod;
-            if (planBillingPeriod === 'yearly') {
-                totalCount = 1; // One payment for annual
-            } else if (planBillingPeriod === 'quarterly') {
-                totalCount = 4; // Four quarterly payments
-            } else if (planBillingPeriod === 'monthly') {
-                totalCount = 12; // Twelve monthly payments
-            }
+            if (planBillingPeriod === 'yearly') totalCount = 1;
+            else if (planBillingPeriod === 'quarterly') totalCount = 4;
+            else totalCount = 12;
         }
 
-        // UPDATED LOGIC: Check if the customer already has an active subscription for this plan
-        let subscriptionStartAt = null; // Will be determined based on logic below
+        // 4. Determine subscription start logic
         let isRenewal = false;
-        let isFreeTrialEnabled = false;
+        let subscriptionStartAt = null;
 
-        console.log("plan.amount", plan.amount);
-
-        // Find active subscriptions for this customer and plan
         const activeSubscription = await Subscription.findOne({
             customerId: customer._id,
             planId: plan._id,
-            status: { $in: ['active'] }
-        }).sort({ chargeAt: -1 }); // Get the most recent one
-
-        console.log('printing the activeSubscriptions', activeSubscription);
+            status: 'active'
+        }).sort({ chargeAt: -1 });
 
         if (activeSubscription) {
-            // Customer already has an active subscription - this is a renewal
             isRenewal = true;
-
-            // Set startAt to the next day after current subscription ends
             const currentEndDate = new Date(activeSubscription.subscriptionEndDate);
-            currentEndDate.setDate(currentEndDate.getDate() + 1); // Next day
-            currentEndDate.setHours(0, 0, 0, 0); // Start of the day
+            currentEndDate.setDate(currentEndDate.getDate() + 1);
+            currentEndDate.setHours(0, 0, 0, 0);
             subscriptionStartAt = Math.floor(currentEndDate.getTime() / 1000);
-            console.log("RENEWAL: Customer has an active subscription. Next subscription will start at:", new Date(subscriptionStartAt * 1000));
         } else {
-            // First-time subscription - starts immediately, with 7-day free trial
-            //isFreeTrialEnabled = true;
+            subscriptionStartAt = Math.floor(Date.now() / 1000);
+        }
 
-            // First-time subscription starts immediately (the trial starts now)
-            // We don't set start_at for first-time subscriptions to let it start immediately
-            subscriptionStartAt = Math.floor(Date.now() / 1000); // Let Razorpay start it immediately
-            console.log("NEW SUBSCRIBER: creating the subscription");
-
-
-            // Create subscription options
-            const subscriptionOptions = {
-                plan_id: planId,
-                total_count: totalCount,
-                customer_id: customerId,
-                quantity: 1,
-                customer_notify: 1,
-                notes: {
-                    created_at: new Date().toISOString(),
-                    created_by: customerId,
-                    userId: req.user ? req.user.id : null,
-                    billingPeriod: billingPeriod || plan.billingPeriod,
-                    isRenewal: isRenewal,
-                    isFreeTrialEnabled: isFreeTrialEnabled
-                }
-            };
-
-            // Only set start_at for renewals, not for first-time subscriptions
-            if (isRenewal && subscriptionStartAt) {
-                subscriptionOptions.start_at = subscriptionStartAt;
-                subscriptionOptions.notes.scheduledStart = new Date(subscriptionStartAt * 1000).toISOString();
-            }
-
-
-            // Add expire_by if needed (for auto-cancellation if not authorized)
-            if (isRenewal && subscriptionStartAt) {
-                // Set expiry to 7 days from now or 1 day before start_at, whichever is earlier
-                const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-                const oneDayBeforeStart = subscriptionOptions.start_at - 24 * 60 * 60;
-                subscriptionOptions.expire_by = Math.min(oneDayBeforeStart, sevenDaysFromNow);
-            } else {
-                // For immediate subscriptions, set to expire after 7 days if not authenticated
-                subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-            }
-
-            console.log("Subscription options being sent to Razorpay:", JSON.stringify(subscriptionOptions, null, 2));
-
-            // Verify the plan exists in Razorpay before trying to create subscription
-            try {
-                const planCheck = await razorpay.plans.fetch(planId);
-                console.log("Plan exists in Razorpay:", planCheck.id);
-            } catch (error) {
-                console.error("Plan doesn't exist in Razorpay:", error.error.description);
-                return res.status(404).json({
-                    success: false,
-                    message: "The plan ID doesn't exist in Razorpay",
-                    error: error.error
-                });
-            }
-
-            // Create subscription in Razorpay
-            const subscription = await razorpay.subscriptions.create(subscriptionOptions);
-            console.log("subscription", subscription);
-
-            // Create subscription in our database
-            const newSubscription = new Subscription({
-                razorpaySubscriptionId: subscription.id,
-                customerId: customer._id,
-                planId: plan._id,
-                subscriptionEndDate: subscriptionEndDate,
-                status: subscription.status,
-                startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : new Date(),
-                chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : new Date(),
-                totalCount: subscription.total_count,
-                paidCount: subscription.paid_count,
+        // 5. Build Razorpay subscription options
+        const subscriptionOptions = {
+            plan_id: planId,
+            total_count: totalCount,
+            customer_id: customerId,
+            quantity: 1,
+            customer_notify: 1,
+            notes: {
+                created_at: new Date().toISOString(),
+                created_by: customerId,
+                userId: req.user ? req.user.id : null,
                 billingPeriod: billingPeriod || plan.billingPeriod,
-                notes: {
-                    ...subscription.notes,
-                    pendingActivation: true,
-                    isScheduled: isRenewal,
-                    isRenewal: isRenewal,
-                    isFreeTrialEnabled: isFreeTrialEnabled,
-                    trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
-                }
-            });
+                isRenewal
+            }
+        };
 
-            await newSubscription.save();
+        if (isRenewal && subscriptionStartAt) {
+            subscriptionOptions.start_at = subscriptionStartAt;
+            subscriptionOptions.notes.scheduledStart = new Date(subscriptionStartAt * 1000).toISOString();
 
+            const oneDayBeforeStart = subscriptionStartAt - 24 * 60 * 60;
+            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+            subscriptionOptions.expire_by = Math.min(oneDayBeforeStart, sevenDaysFromNow);
+        } else {
+            subscriptionOptions.expire_by = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+        }
 
-            // Return subscription details
-            res.status(200).json({
-                success: true,
-                subscription: {
-                    id: subscription.id,
-                    status: subscription.status,
-                    startAt: subscription.start_at,
-                    chargeAt: subscription.charge_at,
-                    current_start: subscription.current_start,
-                    current_end: subscription.current_end,
-                    plan_id: subscription.plan_id,
-                    total_count: subscription.total_count,
-                    paid_count: subscription.paid_count,
-                    customer_notify: subscription.customer_notify,
-                    short_url: subscription.short_url,
-                    billingPeriod: billingPeriod || plan.billingPeriod,
-                    isRenewal: isRenewal,
-                    isFreeTrialEnabled: isFreeTrialEnabled,
-                    trialEndDate: isFreeTrialEnabled ? subscriptionOptions.notes.trialEndDate : null
-                },
-                customer: {
-                    id: customer._id,
-                    razorpayCustomerId: customer.razorpayCustomerId,
-                    name: customer.name,
-                    email: customer.email
-                },
-                plan: {
-                    id: plan._id,
-                    razorpayPlanId: plan.razorpayPlanId,
-                    name: plan.name,
-                    amount: plan.amount,
-                    currency: plan.currency,
-                    interval: plan.interval,
-                    billingPeriod: plan.billingPeriod
-                }
+        console.log("Creating subscription with options:", subscriptionOptions);
+
+        // 6. Final safety check: ensure plan exists in Razorpay
+        try {
+            await razorpay.plans.fetch(planId);
+        } catch (error) {
+            return res.status(404).json({
+                success: false,
+                message: "The plan ID doesn't exist in Razorpay",
+                error: error.error
             });
         }
 
+        // 7. Create subscription in Razorpay
+        const subscription = await razorpay.subscriptions.create(subscriptionOptions);
+
+        // 8. Calculate subscription end date
+        let subscriptionEndDate = new Date();
+        if (plan.interval === "monthly") {
+            subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + plan.intervalCount * totalCount);
+        } else if (plan.interval === "yearly") {
+            subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + plan.intervalCount * totalCount);
+        }
+
+        // 9. Save to DB
+        const newSubscription = new Subscription({
+            razorpaySubscriptionId: subscription.id,
+            customerId: customer._id,
+            planId: plan._id,
+            subscriptionEndDate,
+            status: subscription.status,
+            startAt: subscription.start_at ? new Date(subscription.start_at * 1000) : new Date(),
+            chargeAt: subscription.charge_at ? new Date(subscription.charge_at * 1000) : new Date(),
+            totalCount: subscription.total_count,
+            paidCount: subscription.paid_count,
+            billingPeriod: billingPeriod || plan.billingPeriod,
+            notes: {
+                ...subscription.notes,
+                isScheduled: isRenewal,
+                isRenewal
+            }
+        });
+
+        await newSubscription.save();
+
+        // 10. Send response
+        res.status(200).json({
+            success: true,
+            subscription: {
+                id: subscription.id,
+                status: subscription.status,
+                startAt: subscription.start_at,
+                chargeAt: subscription.charge_at,
+                current_start: subscription.current_start,
+                current_end: subscription.current_end,
+                plan_id: subscription.plan_id,
+                total_count: subscription.total_count,
+                paid_count: subscription.paid_count,
+                customer_notify: subscription.customer_notify,
+                short_url: subscription.short_url,
+                billingPeriod: billingPeriod || plan.billingPeriod,
+                isRenewal
+            },
+            customer: {
+                id: customer._id,
+                razorpayCustomerId: customer.razorpayCustomerId,
+                name: customer.name,
+                email: customer.email
+            },
+            plan: {
+                id: plan._id,
+                razorpayPlanId: plan.razorpayPlanId,
+                name: plan.name,
+                amount: plan.amount,
+                currency: plan.currency,
+                interval: plan.interval,
+                billingPeriod: plan.billingPeriod
+            }
+        });
+
     } catch (error) {
         console.error('Error creating subscription:', error);
-
-        // Handle specific Razorpay errors
         if (error.error) {
             return res.status(error.statusCode || 400).json({
                 success: false,
@@ -970,6 +1191,7 @@ export const createSubscription = async (req, res) => {
         });
     }
 };
+
 
 export const addAddonToSubscription = async (req, res) => {
     const { subscriptionId, addons } = req.body;
@@ -1317,6 +1539,7 @@ const updateSubscriptionStatus = async (subscriptionId, status, subscriptionData
                 if (plan && customer) {
                     console.log(`Found matching plan and customer for subscription ${subscriptionId}`);
 
+                    let currentPeriodStart = new Date(subscriptionData.startAt * 1000);
                     // Create a new subscription record
                     const newSubscription = new Subscription({
                         razorpaySubscriptionId: subscriptionId,
