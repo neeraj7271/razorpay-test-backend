@@ -1353,285 +1353,188 @@ export const handleWebhook = async (req, res) => {
 };
 
 // Process webhook events asynchronously
+
 const processWebhookEventAsync = async (event) => {
     try {
-        // Ensure database connection before processing
         await connectDB();
 
-        // The event structure from Razorpay has the actual event type in event.event
-        // and payload data in event.payload
         switch (event.event) {
             case 'payment.captured':
-                await updatePaymentStatus(
-                    event.payload.payment.entity.id,
-                    'captured',
-                    event.payload.payment.entity
-                );
+                await updatePaymentStatus(event.payload.payment.entity.id, 'captured', event.payload.payment.entity);
                 break;
             case 'payment.failed':
-                await updatePaymentStatus(
-                    event.payload.payment.entity.id,
-                    'failed',
-                    event.payload.payment.entity
-                );
+                await updatePaymentStatus(event.payload.payment.entity.id, 'failed', event.payload.payment.entity);
                 break;
-            // case 'payment.authorized':
-            //     await updatePaymentStatus(
-            //         event.payload.payment.entity.id,
-            //         'authorized',
-            //         event.payload.payment.entity
-            //     );
-            //     break;
             case 'payment.refunded':
-                await updatePaymentStatus(
-                    event.payload.payment.entity.id,
-                    'refunded',
-                    event.payload.payment.entity
-                );
+                await updatePaymentStatus(event.payload.payment.entity.id, 'refunded', event.payload.payment.entity);
                 break;
             case 'subscription.charged':
-                await updateSubscriptionCharged(
-                    event.payload.subscription.entity.id,
-                    event.payload.subscription.entity
-                );
+                await updateSubscriptionCharged(event.payload.subscription.entity.id, event.payload.subscription.entity);
                 break;
             case 'subscription.activated':
-                await updateSubscriptionStatus(
-                    event.payload.subscription.entity.id,
-                    'active',
-                    event.payload.subscription.entity
-                );
+                await updateSubscriptionStatus(event.payload.subscription.entity.id, 'active', event.payload.subscription.entity);
                 break;
-            // case 'subscription.authenticated':
-            //     await updateSubscriptionStatus(
-            //         event.payload.subscription.entity.id,
-            //         'authenticated',
-            //         event.payload.subscription.entity
-            //     );
-            //     break;
             case 'subscription.deactivated':
-                await updateSubscriptionStatus(
-                    event.payload.subscription.entity.id,
-                    'halted',
-                    event.payload.subscription.entity
-                );
+                await updateSubscriptionStatus(event.payload.subscription.entity.id, 'halted', event.payload.subscription.entity);
                 break;
             case 'subscription.ended':
-                await updateSubscriptionStatus(
-                    event.payload.subscription.entity.id,
-                    'completed',
-                    event.payload.subscription.entity
-                );
+                await updateSubscriptionStatus(event.payload.subscription.entity.id, 'completed', event.payload.subscription.entity);
                 break;
             case 'order.paid':
-                await updateOrderPaid(
-                    event.payload.order.entity.id,
-                    event.payload.order.entity
-                );
+                await updateOrderPaid(event.payload.order.entity.id, event.payload.order.entity);
                 break;
             case 'invoice.paid':
-                await updateInvoiceStatus(
-                    event.payload.invoice.entity.id,
-                    'paid',
-                    event.payload.invoice.entity
-                );
+                await updateInvoiceStatus(event.payload.invoice.entity.id, 'paid', event.payload.invoice.entity);
                 break;
             default:
                 console.log('Unhandled webhook event type:', event.event);
         }
     } catch (error) {
         console.error('Error processing webhook event:', error.message);
-        console.error(error);
     }
 };
 
-// Helper functions for updating database based on webhook events
 const updatePaymentStatus = async (paymentId, status, paymentData) => {
     try {
-        // Ensure database connection
         await connectDB();
 
-        const payment = await Payment.findOne({ razorpayPaymentId: paymentId });
+        let payment = await Payment.findOne({ razorpayPaymentId: paymentId });
 
         if (payment) {
             payment.status = status;
             payment.paymentDetails = paymentData;
             await payment.save();
         } else {
-            // Payment not found in DB, create a new record
-            try {
-                // Find customer if exists
-                let customerId = null;
-                if (paymentData.customer_id) {
-                    const customer = await Customer.findOne({ razorpayCustomerId: paymentData.customer_id });
-                    if (customer) {
-                        customerId = customer._id;
-                    }
-                }
-
-                const newPayment = new Payment({
-                    razorpayPaymentId: paymentId,
-                    razorpayOrderId: paymentData.order_id,
-                    customerId: customerId,
-                    amount: paymentData.amount / 100,
-                    currency: paymentData.currency,
-                    status: status,
-                    method: paymentData.method,
-                    paymentDetails: paymentData,
-                });
-
-                await newPayment.save();
-            } catch (error) {
-                console.error(`Error creating payment for ${paymentId}:`, error);
+            let customerId = null;
+            if (paymentData.customer_id) {
+                const customer = await Customer.findOne({ razorpayCustomerId: paymentData.customer_id });
+                if (customer) customerId = customer._id;
             }
+
+            payment = new Payment({
+                razorpayPaymentId: paymentId,
+                razorpayOrderId: paymentData.order_id,
+                customerId,
+                amount: paymentData.amount / 100,
+                currency: paymentData.currency,
+                status,
+                method: paymentData.method,
+                paymentDetails: paymentData
+            });
+
+            await payment.save();
         }
     } catch (error) {
-        console.error(`Error updating payment status for ${paymentId}:`, error);
+        console.error(Error`updating payment ${paymentId}`, error);
     }
 };
 
 const updateSubscriptionStatus = async (subscriptionId, status, subscriptionData) => {
     try {
-        // Ensure database connection
         await connectDB();
 
-        console.log(`Updating subscription ${subscriptionId} status to ${status}`);
         const subscription = await Subscription.findOne({ razorpaySubscriptionId: subscriptionId });
 
+        const newEndDate = new Date(subscriptionData.current_end * 1000);
+        const newStartDate = new Date(subscriptionData.current_start * 1000);
+
         if (subscription) {
-            // Log previous status
-            console.log(`Found subscription ${subscriptionId} with current status ${subscription.status}`);
-
-            // Update subscription data
             subscription.status = status;
-            subscription.currentPeriodStart = new Date(subscriptionData.startAt * 1000);
-            subscription.currentPeriodEnd = new Date(subscriptionData.subscriptionEndDate * 1000);
             subscription.paidCount = subscriptionData.paid_count;
+            subscription.chargeAt = newStartDate;
+            subscription.startAt = newStartDate;
+            subscription.subscriptionEndDate = newEndDate;
 
-
-            // Add notes about the update
             subscription.notes = {
                 ...subscription.notes,
-                pendingActivation: false,
                 statusUpdated: new Date().toISOString(),
-                previousStatus: subscription.status,
-                newStatus: status,
-                updateMethod: 'webhook'
+                updateMethod: 'webhook',
+                isRenewal: subscription.notes?.isRenewal || false
             };
 
-            // If being activated, remove the pendingActivation flag
-            if (status === 'active' || status === 'authenticated') {
+            if (status === 'active') {
                 subscription.notes.pendingActivation = false;
                 subscription.notes.activatedAt = new Date().toISOString();
             }
 
             await subscription.save();
-            console.log(`Successfully updated subscription ${subscriptionId} to ${status} and pendingActivation is ${subscription.notes.pendingActivation}`);
+            console.log(`Updated subscription ${subscriptionId} to status: ${status}`);
         } else {
-            console.log(`Subscription ${subscriptionId} not found, creating new record with status ${status}`);
+            console.log(`Subscription ${subscriptionId} not found.Creating new one.`);
 
-            // Subscription not found in DB, try to create one
-            try {
-                // Get plan and customer
-                const plan = await Plan.findOne({ razorpayPlanId: subscriptionData.plan_id });
-                const customer = await Customer.findOne({ razorpayCustomerId: subscriptionData.customer_id });
+            const customer = await Customer.findOne({ razorpayCustomerId: subscriptionData.customer_id });
+            const plan = await Plan.findOne({ razorpayPlanId: subscriptionData.plan_id });
 
-                if (plan && customer) {
-                    console.log(`Found matching plan and customer for subscription ${subscriptionId}`);
-
-                    let currentPeriodStart = new Date(subscriptionData.startAt * 1000);
-                    // Create a new subscription record
-                    const newSubscription = new Subscription({
-                        razorpaySubscriptionId: subscriptionId,
-                        customerId: customer._id,
-                        planId: plan._id,
-                        status: status,
-                        currentPeriodStart: new Date(subscriptionData.startAt * 1000),
-                        currentPeriodEnd: new Date(subscriptionData.subscriptionEndDate * 1000),
-                        totalCount: subscriptionData.total_count,
-                        paidCount: subscriptionData.paid_count,
-                        notes: {
-                            createdByWebhook: true,
-                            createdAt: new Date().toISOString(),
-                            initialStatus: status
-                        }
-                    });
-
-                    // If already active, mark as activated
-                    if (status === 'active' || status === 'authenticated') {
-                        newSubscription.notes.pendingActivation = false;
-                        newSubscription.notes.activatedAt = new Date().toISOString();
-                    } else {
-                        newSubscription.notes.pendingActivation = true;
-                    }
-
-                    await newSubscription.save();
-                    console.log(`Successfully created subscription ${subscriptionId} with status ${status}`);
-
-                    // If the subscription belongs to a user, try to find and update the user record
-                    if (customer.userId) {
-                        try {
-                            const user = await User.findById(customer.userId);
-                            if (user) {
-                                console.log(`Updating user ${user._id} with subscription info`);
-                                // You can add code here to update user record if needed
-                            }
-                        } catch (error) {
-                            console.error(`Error updating user for subscription ${subscriptionId}:`, error);
-                        }
-                    }
-                } else {
-                    console.log(`Could not find matching plan or customer for subscription ${subscriptionId}`);
-                }
-            } catch (error) {
-                console.error(`Error creating subscription for ${subscriptionId}:`, error);
+            if (!customer || !plan) {
+                return console.warn(`Cannot create subscription: customer or plan not found`);
             }
+
+            const newSubscription = new Subscription({
+                razorpaySubscriptionId: subscriptionId,
+                customerId: customer._id,
+                planId: plan._id,
+                status,
+                startAt: newStartDate,
+                chargeAt: newStartDate,
+                subscriptionEndDate: newEndDate,
+                totalCount: subscriptionData.total_count,
+                paidCount: subscriptionData.paid_count,
+                billingPeriod: plan.billingPeriod,
+                notes: {
+                    createdByWebhook: true,
+                    initialStatus: status,
+                    isRenewal: false,
+                    pendingActivation: status !== 'active',
+                    createdAt: new Date().toISOString()
+                }
+            });
+
+            await newSubscription.save();
+            console.log(`Created new subscription ${subscriptionId} with status: ${status}`);
         }
     } catch (error) {
-        console.error(`Error updating subscription status for ${subscriptionId}:`, error);
+        console.error(`Error updating subscription ${subscriptionId}:`, error);
     }
 };
 
 const updateSubscriptionCharged = async (subscriptionId, subscriptionData) => {
     try {
         await updateSubscriptionStatus(subscriptionId, 'active', subscriptionData);
-        await Subscription.findOneAndUpdate(
-            { razorpaySubscriptionId: subscription.id },
-            {
-                status: subscription.status,
-                'notes.pendingActivation': false  // Update the pendingActivation flag
-            }
-        );
-
-        console.log(`Subscription ${subscription.id} status updated to ${subscription.status} and pendingActivation set to false`);
-        console.log(`Subscription ${subscriptionId} charged and updated`);
     } catch (error) {
-        console.error(`Error updating subscription charge for ${subscriptionId}:`, error);
-
+        console.error(`Error marking subscription ${subscriptionId} as charged:`, error);
     }
 };
 
+// Stubs if needed later:
 const updateOrderPaid = async (orderId, orderData) => {
-    try {
-        // Ensure database connection
-        await connectDB();
-
-        // We don't have an Order model, but we can update related payment if exists
-        const payment = await Payment.findOne({ razorpayOrderId: orderId });
-        if (payment) {
-            payment.status = 'captured';
-            payment.paymentDetails = { ...payment.paymentDetails, order: orderData };
-            await payment.save();
-        }
-    } catch (error) {
-        console.error(`Error updating order paid for ${orderId}:`, error);
-    }
+    console.log(`Order ${orderId} paid.Implement logic if needed.`);
 };
 
 const updateInvoiceStatus = async (invoiceId, status, invoiceData) => {
-    // You may create an Invoice model if needed
-    console.log(`Invoice ${invoiceId} status updated to ${status}`);
+    console.log(`Invoice ${invoiceId} status updated to ${status}.Implement logic if needed.`);
 };
+
+// const updateOrderPaid = async (orderId, orderData) => {
+//     try {
+//         // Ensure database connection
+//         await connectDB();
+
+//         // We don't have an Order model, but we can update related payment if exists
+//         const payment = await Payment.findOne({ razorpayOrderId: orderId });
+//         if (payment) {
+//             payment.status = 'captured';
+//             payment.paymentDetails = { ...payment.paymentDetails, order: orderData };
+//             await payment.save();
+//         }
+//     } catch (error) {
+//         console.error(`Error updating order paid for ${orderId}:`, error);
+//     }
+// };
+
+// const updateInvoiceStatus = async (invoiceId, status, invoiceData) => {
+//     // You may create an Invoice model if needed
+//     console.log(`Invoice ${invoiceId} status updated to ${status}`);
+// };
 
 // @desc    Validate if a discount was applied to a subscription
 // @route   GET /api/validate-discount/:subscriptionId
