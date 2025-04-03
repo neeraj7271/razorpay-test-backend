@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, capturePayment, verifyPayment, getPlans, createCustomer, createSubscription, addAddonToSubscription, validateDiscount, getCustomers, getUserSubscriptions, getSubscriptionDetails, getTransactionHistory, checkSubscriptionStatus } from '../controllers/orderController.js';
+import { createOrder, capturePayment, verifyPayment, getPlans, createCustomer, createSubscription, getCustomers, getUserSubscriptions, getSubscriptionDetails, getTransactionHistory, checkSubscriptionStatus } from '../controllers/orderController.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
