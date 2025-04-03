@@ -359,6 +359,7 @@ export const getPlans = async (req, res) => {
                 planId: plan.planId,
                 name: plan.name,
                 price: plan.price,
+                planType: plan.type,
                 currency: 'INR',
                 description: `${plan.name} Plan (${plan.type === 'yearly' ? 'Annual' : 'Quarterly'})`,
                 features: plan.features,
@@ -1197,12 +1198,12 @@ export const createSubscription = async (req, res) => {
         const { planType, totalCount, customerId } = req.body;
         // const userId = req.user.id;
 
-        let customer = await Customer.findOne({ razorpayCustomerId: customerId });
+        //  let customer = await Customer.findOne({ razorpayCustomerId: customerId });
 
         // Determine the start date for the new subscription
         let startDate = new Date();
         // Check if the user currently has an active subscription that hasn't ended
-        const currentSub = await Subscription.findOne({ customerId: customer.razorpayCustomerId, status: 'active' });
+        const currentSub = await Subscription.findOne({ customerId: customerId, status: 'active' });
         if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
             // If an active subscription exists, start new one the day after the current ends
             startDate = new Date(currentSub.subscriptionEndDate);
