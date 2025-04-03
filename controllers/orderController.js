@@ -281,7 +281,7 @@ export const getPlans = async (req, res) => {
             // Quarterly plans - each with unique IDs or use the yearly ones with different params
             {
                 name: 'Basic',
-                planId: 'plan_QE3hhTUMBT4aCK',
+                planId: 'plan_QE3mD6WJXoxFuK',
                 type: 'quarterly',
                 features: [
                     'Up to 5 users',
@@ -293,7 +293,7 @@ export const getPlans = async (req, res) => {
             },
             {
                 name: 'Advance',
-                planId: 'plan_QE3igMBvi33VIp',
+                planId: 'plan_QE3klPxzXy1pp3',
                 type: 'quarterly',
                 features: [
                     'Up to 15 users',
@@ -305,7 +305,7 @@ export const getPlans = async (req, res) => {
             },
             {
                 name: 'Professional',
-                planId: 'plan_QE3jTkUD8zyDww',
+                planId: 'plan_QE3l9wpI55W24z',
                 type: 'quarterly',
                 features: [
                     'Unlimited users',
