@@ -971,7 +971,7 @@ export const getPlans = async (req, res) => {
 //     }
 // };
 
-export const createSubscription = async (req, res) => {
+export const createSubscription1 = async (req, res) => {
     console.log("createSubscription", req.body);
     let { planId, customerId, totalCount = 12, billingPeriod } = req.body;
 
@@ -1191,6 +1191,64 @@ export const createSubscription = async (req, res) => {
         });
     }
 };
+
+async function createSubscription(req, res) {
+    try {
+        const { planType, totalCount, customerId } = req.body;
+        // const userId = req.user.id;
+
+        let customer = await Customer.findOne({ razorpayCustomerId: customerId });
+
+        // Determine the start date for the new subscription
+        let startDate = new Date();
+        // Check if the user currently has an active subscription that hasn't ended
+        const currentSub = await Subscription.findOne({ customerId: customer.razorpayCustomerId, status: 'active' });
+        if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
+            // If an active subscription exists, start new one the day after the current ends
+            startDate = new Date(currentSub.subscriptionEndDate);
+            startDate.setDate(startDate.getDate() + 1);  // next day after current end
+        }
+
+        // Calculate the end date based on billing interval and totalCount
+        let endDate = new Date(startDate);
+        if (planType === 'quarterly') {
+            // 3 months per quarter
+            endDate.setMonth(endDate.getMonth() + 3 * totalCount);
+        } else if (planType === 'yearly') {
+            // 12 months per year
+            endDate.setFullYear(endDate.getFullYear() + 1 * totalCount);
+        }
+        endDate.setDate(endDate.getDate() - 1);  // subtract 1 day so endDate is inclusive of last period
+
+        // Prepare Razorpay subscription creation options
+        const options = {
+            plan_id: getRazorpayPlanId(planType),  // function to get plan ID based on planType
+            total_count: totalCount,
+            customer_notify: 1
+        };
+        if (startDate > new Date()) {
+            // Schedule future start (Razorpay expects Unix timestamp in seconds)
+            options.start_at = Math.floor(startDate.getTime() / 1000);
+        }
+
+        // Create subscription via Razorpay API
+        const razorpaySub = await razorpayClient.subscriptions.create(options);
+        // Save the new subscription record in our database
+        const newSubscription = await Subscription.create({
+            userId: userId,
+            razorpaySubscriptionId: razorpaySub.id,
+            planType: planType,
+            subscriptionStartDate: startDate,
+            subscriptionEndDate: endDate,
+            status: 'pending'  // will be updated to 'active' upon webhook confirmation
+        });
+
+        return res.status(200).json({ success: true, data: newSubscription });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+}
 
 
 export const addAddonToSubscription = async (req, res) => {
@@ -1429,171 +1487,48 @@ const updatePaymentStatus = async (paymentId, status, paymentData) => {
     }
 };
 
-const updateSubscriptionStatus = async (subscriptionId, status, subscriptionData) => {
+async function updateSubscriptionStatus(req, res) {
     try {
-        await connectDB();
+        const event = req.body.event;
+        const subEntity = req.body.payload.subscription.entity;
+        const razorpaySubId = subEntity.id;
 
-        const subscription = await Subscription.findOne({ razorpaySubscriptionId: subscriptionId });
-
-        const newEndDate = new Date(subscriptionData.current_end * 1000);
-        const newStartDate = new Date(subscriptionData.current_start * 1000);
-
-        if (subscription) {
-            subscription.status = status;
-            subscription.paidCount = subscriptionData.paid_count;
-            subscription.chargeAt = newStartDate;
-            subscription.startAt = newStartDate;
-            subscription.subscriptionEndDate = newEndDate;
-
-            subscription.notes = {
-                ...subscription.notes,
-                statusUpdated: new Date().toISOString(),
-                updateMethod: 'webhook',
-                isRenewal: subscription.notes?.isRenewal || false
-            };
-
-            if (status === 'active') {
-                subscription.notes.pendingActivation = false;
-                subscription.notes.activatedAt = new Date().toISOString();
-            }
-
-            await subscription.save();
-            console.log(`Updated subscription ${subscriptionId} to status: ${status}`);
-        } else {
-            console.log(`Subscription ${subscriptionId} not found.Creating new one.`);
-
-            const customer = await Customer.findOne({ razorpayCustomerId: subscriptionData.customer_id });
-            const plan = await Plan.findOne({ razorpayPlanId: subscriptionData.plan_id });
-
-            if (!customer || !plan) {
-                return console.warn(`Cannot create subscription: customer or plan not found`);
-            }
-
-            const newSubscription = new Subscription({
-                razorpaySubscriptionId: subscriptionId,
-                customerId: customer._id,
-                planId: plan._id,
-                status,
-                startAt: newStartDate,
-                chargeAt: newStartDate,
-                subscriptionEndDate: newEndDate,
-                totalCount: subscriptionData.total_count,
-                paidCount: subscriptionData.paid_count,
-                billingPeriod: plan.billingPeriod,
-                notes: {
-                    createdByWebhook: true,
-                    initialStatus: status,
-                    isRenewal: false,
-                    pendingActivation: status !== 'active',
-                    createdAt: new Date().toISOString()
-                }
-            });
-
-            await newSubscription.save();
-            console.log(`Created new subscription ${subscriptionId} with status: ${status}`);
-        }
-    } catch (error) {
-        console.error(`Error updating subscription ${subscriptionId}:`, error);
-    }
-};
-
-const updateSubscriptionCharged = async (subscriptionId, subscriptionData) => {
-    try {
-        await updateSubscriptionStatus(subscriptionId, 'active', subscriptionData);
-    } catch (error) {
-        console.error(`Error marking subscription ${subscriptionId} as charged:`, error);
-    }
-};
-
-// Stubs if needed later:
-const updateOrderPaid = async (orderId, orderData) => {
-    console.log(`Order ${orderId} paid.Implement logic if needed.`);
-};
-
-const updateInvoiceStatus = async (invoiceId, status, invoiceData) => {
-    console.log(`Invoice ${invoiceId} status updated to ${status}.Implement logic if needed.`);
-};
-
-// const updateOrderPaid = async (orderId, orderData) => {
-//     try {
-//         // Ensure database connection
-//         await connectDB();
-
-//         // We don't have an Order model, but we can update related payment if exists
-//         const payment = await Payment.findOne({ razorpayOrderId: orderId });
-//         if (payment) {
-//             payment.status = 'captured';
-//             payment.paymentDetails = { ...payment.paymentDetails, order: orderData };
-//             await payment.save();
-//         }
-//     } catch (error) {
-//         console.error(`Error updating order paid for ${orderId}:`, error);
-//     }
-// };
-
-// const updateInvoiceStatus = async (invoiceId, status, invoiceData) => {
-//     // You may create an Invoice model if needed
-//     console.log(`Invoice ${invoiceId} status updated to ${status}`);
-// };
-
-// @desc    Validate if a discount was applied to a subscription
-// @route   GET /api/validate-discount/:subscriptionId
-// @access  Private
-export const validateDiscount = async (req, res) => {
-    try {
-        const { subscriptionId } = req.params;
-
-        // Find the subscription
-        const subscription = await Subscription.findOne({
-            razorpaySubscriptionId: subscriptionId
-        });
-
+        // Find the corresponding subscription in our database
+        const subscription = await Subscription.findOne({ razorpaySubscriptionId: razorpaySubId });
         if (!subscription) {
-            return res.status(404).json({
-                success: false,
-                message: 'Subscription not found'
-            });
+            return res.status(404).json({ success: false, message: 'Subscription not found' });
         }
 
-        // Check if the subscription belongs to the current user's customer
-        const customer = await Customer.findOne({ userId: req.user.id });
-
-        if (!customer || !subscription.customerId.equals(customer._id)) {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized to access this subscription'
-            });
-        }
-
-        // Check if discount is applied
-        if (!subscription.discount) {
-            return res.status(200).json({
-                success: true,
-                hasDiscount: false,
-                discount: null
-            });
-        }
-
-        // Return discount information
-        res.status(200).json({
-            success: true,
-            hasDiscount: true,
-            discount: {
-                amount: subscription.discount.amount,
-                type: subscription.discount.type,
-                appliedAt: subscription.discount.appliedAt,
-                notes: subscription.discount.notes
+        if (event === 'subscription.activated') {
+            // Mark subscription as active and update start/end dates from Razorpay data
+            subscription.status = 'active';
+            if (subEntity.current_start) {
+                subscription.subscriptionStartDate = new Date(subEntity.current_start * 1000);
+            } else {
+                // Fallback to scheduled start_at if current_start is not set
+                subscription.subscriptionStartDate = new Date(subEntity.start_at * 1000);
             }
-        });
-    } catch (error) {
-        console.error('Error validating discount:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to validate discount',
-            error: error.message
-        });
+            if (subEntity.end_at) {
+                subscription.subscriptionEndDate = new Date(subEntity.end_at * 1000);
+            }
+            await subscription.save();
+        } else if (
+            event === 'subscription.completed' ||
+            event === 'subscription.expired' ||
+            event === 'subscription.cancelled'
+        ) {
+            // Mark subscription as ended
+            subscription.status = 'completed';  // or 'expired/cancelled' based on event
+            await subscription.save();
+        }
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, error: err.message });
     }
-};
+}
+
 
 // @desc    Get all customers for the logged in user
 // @route   GET /api/customers

@@ -100,21 +100,26 @@ const SubscriptionSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['created', 'active', 'completed', 'halted', 'cancelled'],
+        enum: ['created', 'active', 'completed', 'halted', 'cancelled', 'pending'],
         default: 'created'
     },
+    subscriptionStartDate: {
+        type: Date,
+        required: true
+    },
     subscriptionEndDate: {
-        type: Date
+        type: Date,
+        required: true
     },
     startAt: {
-        type: Date
+        type: Date // Optional: mirrors Razorpay's start_at
     },
     chargeAt: {
-        type: Date
+        type: Date // Optional: mirrors Razorpay's charge_at
     },
     totalCount: {
         type: Number,
-        default: 12
+        default: 1
     },
     paidCount: {
         type: Number,
@@ -122,8 +127,8 @@ const SubscriptionSchema = new mongoose.Schema({
     },
     billingPeriod: {
         type: String,
-        enum: ['monthly', 'quarterly', 'yearly'],
-        default: 'monthly'
+        enum: ['quarterly', 'yearly'],
+        required: true
     },
     notes: {
         type: Object,
