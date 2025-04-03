@@ -1000,7 +1000,7 @@ export const createSubscription1 = async (req, res) => {
                     name: razorpayCustomer.name,
                     email: razorpayCustomer.email,
                     contact: razorpayCustomer.contact,
-                    userId: req.user ? req.user.id : null
+                    //userId: req.user ? req.user.id : null
                 });
                 await customer.save();
             } catch (error) {
