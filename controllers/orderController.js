@@ -1233,7 +1233,7 @@ export const createSubscription = async (req, res) => {
         const razorpaySub = await razorpay.subscriptions.create(options);
         // Save the new subscription record in our database
         const newSubscription = await Subscription.create({
-            userId: userId,
+            // userId: userId,
             razorpaySubscriptionId: razorpaySub.id,
             planType: planType,
             subscriptionStartDate: startDate,
