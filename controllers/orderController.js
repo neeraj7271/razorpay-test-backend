@@ -1269,7 +1269,11 @@ export const createSubscription = async (req, res) => {
             status: 'pending'  // will be updated to 'active' upon webhook confirmation
         });
 
-        return res.status(200).json({ success: true, data: newSubscription });
+        return res.status(200).json({
+            success: true,
+            data: newSubscription,
+            planDetails: plan,
+        });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ success: false, error: err.message });
