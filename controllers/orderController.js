@@ -1224,24 +1224,24 @@ export const createSubscription = async (req, res) => {
         }
 
         // Determine the start date for the new subscription
-        let startDate = new Date();
-        const currentSub = await Subscription.findOne({ customerId: customer._id, status: 'active' });
-        if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
-            startDate = new Date(currentSub.subscriptionEndDate);
-            startDate.setDate(startDate.getDate() + 1);  // next day after current end
-        }
+        // let startDate = new Date();
+        // const currentSub = await Subscription.findOne({ customerId: customer._id, status: 'active' });
+        // if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
+        //     startDate = new Date(currentSub.subscriptionEndDate);
+        //     startDate.setDate(startDate.getDate() + 1);  // next day after current end
+        // }
 
-        let endDate = new Date(startDate);
-        if (planType === 'quarterly') {
-            // 3 months per quarter
-            endDate.setMonth(endDate.getMonth() + 3 * totalCount);
-        } else if (planType === 'yearly') {
-            // 12 months per year
-            endDate.setFullYear(endDate.getFullYear() + 1 * totalCount);
-        } else {
-            return res.status(400).json({ success: false, message: 'Invalid plan type. Must be quarterly or yearly' });
-        }
-        endDate.setDate(endDate.getDate() - 1);  // subtract 1 day so endDate is inclusive of last period
+        // let endDate = new Date(startDate);
+        // if (planType === 'quarterly') {
+        //     // 3 months per quarter
+        //     endDate.setMonth(endDate.getMonth() + 3 * totalCount);
+        // } else if (planType === 'yearly') {
+        //     // 12 months per year
+        //     endDate.setFullYear(endDate.getFullYear() + 1 * totalCount);
+        // } else {
+        //     return res.status(400).json({ success: false, message: 'Invalid plan type. Must be quarterly or yearly' });
+        // }
+        // endDate.setDate(endDate.getDate() - 1);  // subtract 1 day so endDate is inclusive of last period
 
         // Prepare Razorpay subscription creation options
         const options = {
@@ -1249,10 +1249,10 @@ export const createSubscription = async (req, res) => {
             total_count: totalCount,
             customer_notify: 1
         };
-        if (startDate > new Date()) {
-            // Schedule future start (Razorpay expects Unix timestamp in seconds)
-            options.start_at = Math.floor(startDate.getTime() / 1000);
-        }
+        // if (startDate > new Date()) {
+        //     // Schedule future start (Razorpay expects Unix timestamp in seconds)
+        //     options.start_at = Math.floor(startDate.getTime() / 1000);
+        // }
 
         // Create subscription via Razorpay API
         const razorpaySub = await razorpay.subscriptions.create(options);
@@ -1449,6 +1449,9 @@ const processWebhookEventAsync = async (event) => {
         switch (event.event) {
             case 'payment.captured':
                 await updatePaymentStatus(event.payload.payment.entity.id, 'captured', event.payload.payment.entity);
+                break;
+            case 'payment.authorized':
+                await updatePaymentStatus(event.payload.payment.entity.id, 'authorized', event.payload.payment.entity);
                 break;
             case 'payment.failed':
                 await updatePaymentStatus(event.payload.payment.entity.id, 'failed', event.payload.payment.entity);
