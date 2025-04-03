@@ -1223,7 +1223,7 @@ export const createSubscription = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Plan not found' });
         }
 
-        Determine the start date for the new subscription
+        // Determine the start date for the new subscription
         let startDate = new Date();
         const currentSub = await Subscription.findOne({ customerId: customer._id, status: 'active' });
         if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
