@@ -1211,9 +1211,21 @@ export const createSubscription = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Plan type is required' });
         }
 
+        // Find customer in DB by razorpayCustomerId
+        const customer = await Customer.findOne({ razorpayCustomerId: customerId });
+        if (!customer) {
+            return res.status(404).json({ success: false, message: 'Customer not found' });
+        }
+
+        // Find plan in DB by razorpayPlanId
+        const plan = await Plan.findOne({ razorpayPlanId: planId });
+        if (!plan) {
+            return res.status(404).json({ success: false, message: 'Plan not found' });
+        }
+
         // Determine the start date for the new subscription
         let startDate = new Date();
-        const currentSub = await Subscription.findOne({ razorpayCustomerId: customerId, status: 'active' });
+        const currentSub = await Subscription.findOne({ customerId: customer._id, status: 'active' });
         if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
             startDate = new Date(currentSub.subscriptionEndDate);
             startDate.setDate(startDate.getDate() + 1);  // next day after current end
@@ -1249,8 +1261,8 @@ export const createSubscription = async (req, res) => {
         const newSubscription = await Subscription.create({
             razorpaySubscriptionId: razorpaySub.id,
             billingPeriod: planType, // Set billing period based on plan type
-            customerId: customerId, // Add required customerId
-            planId: planId, // Add required planId
+            customerId: customer._id, // Use MongoDB ObjectId from customer
+            planId: plan._id, // Use MongoDB ObjectId from plan
             planType: planType,
             subscriptionStartDate: startDate,
             subscriptionEndDate: endDate,
