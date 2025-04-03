@@ -33,8 +33,7 @@ const PlanSchema = new mongoose.Schema(
         },
         interval: {
             type: String,
-            enum: ['daily', 'weekly', 'monthly', 'yearly'],
-            default: 'monthly',
+            required: true,
         },
         intervalCount: {
             type: Number,
