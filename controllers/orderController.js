@@ -974,7 +974,7 @@ export const getPlans = async (req, res) => {
 //     }
 // };
 
-export const createSubscription = async (req, res) => {
+export const createSubscription1 = async (req, res) => {
     console.log("createSubscription", req.body);
     let { planId, customerId, totalCount = 12, billingPeriod } = req.body;
 
@@ -1195,10 +1195,21 @@ export const createSubscription = async (req, res) => {
     }
 };
 
-export const createSubscription1 = async (req, res) => {
+export const createSubscription = async (req, res) => {
     try {
         const { planType, totalCount, customerId, planId } = req.body;
 
+        if (!customerId) {
+            return res.status(400).json({ success: false, message: 'Customer ID is required' });
+        }
+
+        if (!planId) {
+            return res.status(400).json({ success: false, message: 'Plan ID is required' });
+        }
+
+        if (!planType) {
+            return res.status(400).json({ success: false, message: 'Plan type is required' });
+        }
 
         // Determine the start date for the new subscription
         let startDate = new Date();
@@ -1215,12 +1226,14 @@ export const createSubscription1 = async (req, res) => {
         } else if (planType === 'yearly') {
             // 12 months per year
             endDate.setFullYear(endDate.getFullYear() + 1 * totalCount);
+        } else {
+            return res.status(400).json({ success: false, message: 'Invalid plan type. Must be quarterly or yearly' });
         }
         endDate.setDate(endDate.getDate() - 1);  // subtract 1 day so endDate is inclusive of last period
 
         // Prepare Razorpay subscription creation options
         const options = {
-            plan_id: planId,  // function to get plan ID based on planType
+            plan_id: planId,
             total_count: totalCount,
             customer_notify: 1
         };
@@ -1231,12 +1244,13 @@ export const createSubscription1 = async (req, res) => {
 
         // Create subscription via Razorpay API
         const razorpaySub = await razorpay.subscriptions.create(options);
+
         // Save the new subscription record in our database
         const newSubscription = await Subscription.create({
-            // userId: userId,
             razorpaySubscriptionId: razorpaySub.id,
-            billingPeriod: razorpaySub.billingPeriod,
-            planId: razorpay.razorpayPlanId,
+            billingPeriod: planType, // Set billing period based on plan type
+            customerId: customerId, // Add required customerId
+            planId: planId, // Add required planId
             planType: planType,
             subscriptionStartDate: startDate,
             subscriptionEndDate: endDate,
