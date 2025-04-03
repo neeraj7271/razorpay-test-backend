@@ -1247,7 +1247,6 @@ export const createSubscription = async (req, res) => {
         const options = {
             plan_id: planId,
             total_count: totalCount,
-            customerId: customerId,
             customer_notify: 1
         };
         if (startDate > new Date()) {
