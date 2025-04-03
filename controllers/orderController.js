@@ -1192,7 +1192,7 @@ export const createSubscription1 = async (req, res) => {
     }
 };
 
-async function createSubscription(req, res) {
+export const createSubscription = async (req, res) => {
     try {
         const { planType, totalCount, customerId } = req.body;
         // const userId = req.user.id;
