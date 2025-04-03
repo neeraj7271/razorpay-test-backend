@@ -1198,21 +1198,16 @@ export const createSubscription1 = async (req, res) => {
 export const createSubscription = async (req, res) => {
     try {
         const { planType, totalCount, customerId } = req.body;
-        // const userId = req.user.id;
 
-        //  let customer = await Customer.findOne({ razorpayCustomerId: customerId });
 
         // Determine the start date for the new subscription
         let startDate = new Date();
-        // Check if the user currently has an active subscription that hasn't ended
-        const currentSub = await Subscription.findOne({ customerId: customerId, status: 'active' });
+        const currentSub = await Subscription.findOne({ razorpayCustomerId: customerId, status: 'active' });
         if (currentSub && currentSub.subscriptionEndDate >= new Date()) {
-            // If an active subscription exists, start new one the day after the current ends
             startDate = new Date(currentSub.subscriptionEndDate);
             startDate.setDate(startDate.getDate() + 1);  // next day after current end
         }
 
-        // Calculate the end date based on billing interval and totalCount
         let endDate = new Date(startDate);
         if (planType === 'quarterly') {
             // 3 months per quarter
