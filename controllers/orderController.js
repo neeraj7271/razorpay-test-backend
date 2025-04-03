@@ -354,7 +354,7 @@ export const getPlans = async (req, res) => {
 
         // Process plans without saving to database
         for (const plan of predefinedPlans) {
-            const formattedPlan = {
+            const formattedPlan = new Plan({
                 id: plan.planId,
                 planId: plan.planId,
                 name: plan.name,
@@ -366,7 +366,7 @@ export const getPlans = async (req, res) => {
                 type: plan.type,
                 interval: plan.type === 'yearly' ? 'year' : 'month',
                 intervalCount: plan.type === 'yearly' ? 1 : 3
-            };
+            });
 
             if (plan.type === 'yearly') {
                 yearlyPlans.push(formattedPlan);
