@@ -1247,6 +1247,7 @@ export const createSubscription = async (req, res) => {
         const options = {
             plan_id: planId,
             total_count: totalCount,
+            customerId: customerId,
             customer_notify: 1
         };
         if (startDate > new Date()) {
@@ -1518,6 +1519,8 @@ async function updateSubscriptionStatus(req, res) {
         const event = req.body.event;
         const subEntity = req.body.payload.subscription.entity;
         const razorpaySubId = subEntity.id;
+        console.log("inside the update subscription status in webhook");
+        console.log("printingt the sub id rece in sub id", subEntity.id);
 
         // Find the corresponding subscription in our database
         const subscription = await Subscription.findOne({ razorpaySubscriptionId: razorpaySubId });
@@ -1538,6 +1541,7 @@ async function updateSubscriptionStatus(req, res) {
                 subscription.subscriptionEndDate = new Date(subEntity.end_at * 1000);
             }
             await subscription.save();
+            console.log("subscription status has been updated");
         } else if (
             event === 'subscription.completed' ||
             event === 'subscription.expired' ||
