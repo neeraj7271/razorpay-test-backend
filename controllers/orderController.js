@@ -1230,7 +1230,7 @@ export const createSubscription = async (req, res) => {
         }
 
         // Create subscription via Razorpay API
-        const razorpaySub = await razorpayClient.subscriptions.create(options);
+        const razorpaySub = await razorpay.subscriptions.create(options);
         // Save the new subscription record in our database
         const newSubscription = await Subscription.create({
             userId: userId,
