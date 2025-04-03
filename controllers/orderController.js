@@ -373,9 +373,9 @@ export const getPlans = async (req, res) => {
             } else if (plan.type === 'quarterly') {
                 quarterlyPlans.push(formattedPlan);
             }
+            await formattedPlan.save();
         }
 
-        await formattedPlan.save();
 
         // Sort plans by price
         yearlyPlans.sort((a, b) => a.price - b.price);
