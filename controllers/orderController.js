@@ -1499,6 +1499,7 @@ const updatePaymentStatus = async (paymentId, status, paymentData) => {
             payment.paymentDetails = paymentData;
             await payment.save();
         } else {
+            // Payment not found in DB, create a new record
             let customerId = null;
             if (paymentData.customer_id) {
                 const customer = await Customer.findOne({ razorpayCustomerId: paymentData.customer_id });
@@ -1507,7 +1508,7 @@ const updatePaymentStatus = async (paymentId, status, paymentData) => {
 
             payment = new Payment({
                 razorpayPaymentId: paymentId,
-                razorpayOrderId: paymentData.order_id,
+                razorpayOrderId: paymentData.order_id || 'webhook-' + paymentId, // Provide a default value
                 customerId,
                 amount: paymentData.amount / 100,
                 currency: paymentData.currency,
@@ -1519,7 +1520,7 @@ const updatePaymentStatus = async (paymentId, status, paymentData) => {
             await payment.save();
         }
     } catch (error) {
-        console.error(Error`updating payment ${paymentId}`, error);
+        console.error(`Error updating payment ${paymentId}:`, error);
     }
 };
 
