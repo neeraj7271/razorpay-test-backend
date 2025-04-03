@@ -1197,7 +1197,7 @@ export const createSubscription1 = async (req, res) => {
 
 export const createSubscription = async (req, res) => {
     try {
-        const { planType, totalCount, customerId } = req.body;
+        const { planType, totalCount, customerId, planId } = req.body;
 
 
         // Determine the start date for the new subscription
@@ -1220,7 +1220,7 @@ export const createSubscription = async (req, res) => {
 
         // Prepare Razorpay subscription creation options
         const options = {
-            plan_id: getRazorpayPlanId(planType),  // function to get plan ID based on planType
+            plan_id: planId,  // function to get plan ID based on planType
             total_count: totalCount,
             customer_notify: 1
         };
