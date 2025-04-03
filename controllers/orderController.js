@@ -358,12 +358,12 @@ export const getPlans = async (req, res) => {
                 id: plan.planId,
                 planId: plan.planId,
                 name: plan.name,
-                price: plan.price,
+                amount: plan.price,
                 planType: plan.type === 'yearly' ? 'Annual' : 'Quarterly',
                 currency: 'INR',
                 description: `${plan.name} Plan (${plan.type === 'yearly' ? 'Annual' : 'Quarterly'})`,
                 features: plan.features,
-                type: plan.type,
+                period: plan.type,
                 interval: plan.type === 'yearly' ? 'year' : 'month',
                 intervalCount: plan.type === 'yearly' ? 1 : 3
             });
