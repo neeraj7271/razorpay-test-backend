@@ -237,6 +237,8 @@ export const verifyPayment = async (req, res) => {
     }
 };
 
+
+
 export const getPlans = async (req, res) => {
     try {
         // Define separate IDs for yearly and quarterly plans to avoid database conflicts
@@ -244,7 +246,7 @@ export const getPlans = async (req, res) => {
             // Yearly plans
             {
                 name: 'Basic',
-                planId: 'plan_QE3hhTUMBT4aCK',
+                planId: 'plan_QEWJnnX2VpAn2f',
                 type: 'yearly',
                 features: [
                     'Up to 5 users',
@@ -256,7 +258,7 @@ export const getPlans = async (req, res) => {
             },
             {
                 name: 'Advance',
-                planId: 'plan_QE3igMBvi33VIp',
+                planId: 'plan_QEWK8lvAdWTvoC',
                 type: 'yearly',
                 features: [
                     'Up to 15 users',
@@ -268,7 +270,7 @@ export const getPlans = async (req, res) => {
             },
             {
                 name: 'Professional',
-                planId: 'plan_QE3jTkUD8zyDww',
+                planId: 'plan_QEWKQLfLpRrP2h',
                 type: 'yearly',
                 features: [
                     'Unlimited users',
@@ -281,7 +283,7 @@ export const getPlans = async (req, res) => {
             // Quarterly plans - each with unique IDs or use the yearly ones with different params
             {
                 name: 'Basic',
-                planId: 'plan_QE3mD6WJXoxFuK',
+                planId: 'plan_QEWM2l6em5CkB9',
                 type: 'quarterly',
                 features: [
                     'Up to 5 users',
@@ -293,7 +295,7 @@ export const getPlans = async (req, res) => {
             },
             {
                 name: 'Advance',
-                planId: 'plan_QE3klPxzXy1pp3',
+                planId: 'plan_QEWLiy1eHDvmOB',
                 type: 'quarterly',
                 features: [
                     'Up to 15 users',
@@ -305,7 +307,7 @@ export const getPlans = async (req, res) => {
             },
             {
                 name: 'Professional',
-                planId: 'plan_QE3l9wpI55W24z',
+                planId: 'plan_QEWLLrwEd2lIWy',
                 type: 'quarterly',
                 features: [
                     'Unlimited users',
@@ -373,7 +375,7 @@ export const getPlans = async (req, res) => {
             } else if (plan.type === 'quarterly') {
                 quarterlyPlans.push(formattedPlan);
             }
-            //await formattedPlan.save();
+            // await formattedPlan.save();
         }
 
 
