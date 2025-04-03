@@ -355,7 +355,6 @@ export const getPlans = async (req, res) => {
         // Process plans without saving to database
         for (const plan of predefinedPlans) {
             const formattedPlan = new Plan({
-                id: plan.planId,
                 razorpayPlanId: plan.planId,
                 name: plan.name,
                 amount: plan.price,
