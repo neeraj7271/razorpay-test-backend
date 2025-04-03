@@ -353,6 +353,7 @@ export const getPlans = async (req, res) => {
         const quarterlyPlans = [];
 
         // Process plans without saving to database
+
         for (const plan of predefinedPlans) {
             const formattedPlan = new Plan({
                 razorpayPlanId: plan.planId,
@@ -372,7 +373,7 @@ export const getPlans = async (req, res) => {
             } else if (plan.type === 'quarterly') {
                 quarterlyPlans.push(formattedPlan);
             }
-            await formattedPlan.save();
+            //await formattedPlan.save();
         }
 
 
