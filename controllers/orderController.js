@@ -375,7 +375,7 @@ export const getPlans = async (req, res) => {
             } else if (plan.type === 'quarterly') {
                 quarterlyPlans.push(formattedPlan);
             }
-            await formattedPlan.save();
+            // await formattedPlan.save();
         }
 
 
