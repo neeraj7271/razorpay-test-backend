@@ -356,7 +356,7 @@ export const getPlans = async (req, res) => {
         for (const plan of predefinedPlans) {
             const formattedPlan = new Plan({
                 id: plan.planId,
-                planId: plan.planId,
+                razorpayPlanId: plan.planId,
                 name: plan.name,
                 amount: plan.price,
                 planType: plan.type === 'yearly' ? 'Annual' : 'Quarterly',
